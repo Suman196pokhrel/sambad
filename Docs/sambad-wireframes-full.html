@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sambad — Full Wireframes</title>
+<style>
+:root{
+  --ink:#1c1c1e; --mid:#65656b; --faint:#98989e; --line:#d6d6da; --soft:#e8e8ec;
+  --fill:#f1f1f3; --fill2:#e3e3e7; --paper:#fafafa; --white:#fff;
+  --warn:#8a6d1f; --bad:#9b3b32; --good:#2f6b4f; --note:#2b5f9e;
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+     color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+
+/* ── shell ─────────────────────────────────────── */
+.top{position:sticky;top:0;z-index:50;background:rgba(250,250,250,.94);
+     backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .in{max-width:1220px;margin:0 auto;padding:14px 28px;display:flex;
+         align-items:center;gap:20px;flex-wrap:wrap}
+.logo{font-weight:660;letter-spacing:-.02em;font-size:16px}
+.logo span{color:var(--faint);font-weight:400;font-size:12px;margin-left:8px;
+           font-family:ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em}
+.modes{display:flex;gap:6px;margin-left:auto}
+.modes button{font:13px/1 inherit;font-weight:550;padding:9px 15px;border:1px solid var(--line);
+              border-radius:7px;background:var(--white);color:var(--mid);cursor:pointer;transition:.14s}
+.modes button:hover{color:var(--ink);border-color:var(--faint)}
+.modes button[aria-selected=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.idx{max-width:1220px;margin:0 auto;padding:10px 28px 0;display:flex;gap:6px;flex-wrap:wrap}
+.idx a{font:11.5px ui-monospace,monospace;text-decoration:none;color:var(--faint);
+       border:1px solid var(--soft);border-radius:20px;padding:5px 11px;background:var(--white)}
+.idx a:hover{color:var(--ink);border-color:var(--line)}
+
+.wrap{max-width:1220px;margin:0 auto;padding:32px 28px 120px}
+.mode{display:none} .mode.on{display:block}
+
+h2.sec{font-size:12px;font-family:ui-monospace,monospace;text-transform:uppercase;
+       letter-spacing:.1em;color:var(--faint);margin:52px 0 6px;font-weight:600}
+h3.scr{font-size:19px;margin:0 0 5px;letter-spacing:-.015em;font-weight:620}
+p.desc{color:var(--mid);margin:0 0 16px;max-width:70ch;font-size:14px}
+
+/* ── frame ─────────────────────────────────────── */
+.frame{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--white);
+       box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+.chrome{height:30px;background:var(--fill);border-bottom:1px solid var(--line);
+        display:flex;align-items:center;padding:0 11px;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.url{margin-left:10px;font:10.5px ui-monospace,monospace;color:var(--faint)}
+
+/* ── primitives ────────────────────────────────── */
+.bar{height:9px;border-radius:3px;background:var(--fill2)}
+.bar.s{height:7px}
+.w95{width:95%}.w90{width:90%}.w85{width:85%}.w80{width:80%}.w70{width:70%}
+.w60{width:60%}.w50{width:50%}.w40{width:40%}.w30{width:30%}.w25{width:25%}
+.stack>*{margin-bottom:7px} .stack>*:last-child{margin:0}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1;min-width:0}
+
+/* ── employee app ──────────────────────────────── */
+.app{display:flex;min-height:420px}
+.side{width:198px;flex:0 0 198px;border-right:1px solid var(--soft);background:#fbfbfc;
+      padding:14px 12px;display:flex;flex-direction:column}
+.brand{font-weight:650;font-size:14px;margin-bottom:15px;letter-spacing:-.01em}
+.newbtn{border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12.5px;
+        color:var(--mid);margin-bottom:19px;background:var(--white)}
+.sgroup{font:10px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;
+        color:var(--faint);margin:0 0 8px}
+.sitem{padding:6px 8px;border-radius:6px;margin-bottom:3px;font-size:12.5px;color:var(--mid);
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sitem.act{background:var(--fill);color:var(--ink)}
+.sfoot{margin-top:auto;padding-top:12px;border-top:1px solid var(--soft);font-size:12px;
+       color:var(--faint);display:flex;align-items:center;gap:8px}
+.av{width:22px;height:22px;border-radius:50%;background:var(--fill2);flex:0 0 22px}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.thread{flex:1;padding:22px 26px;overflow:hidden}
+.composer{border-top:1px solid var(--soft);padding:14px 26px;background:var(--white)}
+.input{border:1px solid var(--line);border-radius:9px;padding:11px 13px;display:flex;
+       align-items:center;justify-content:space-between;color:var(--faint);font-size:13.5px}
+.input.focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(28,28,30,.06)}
+.input .typed{color:var(--ink)}
+.send{width:26px;height:26px;border-radius:6px;background:var(--fill2);flex:0 0 26px}
+.send.on{background:var(--ink)}
+.hint{font-size:11px;color:var(--faint);margin-top:7px}
+
+.msg{margin-bottom:22px}
+.who{font:10px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;
+     color:var(--faint);margin-bottom:7px}
+.qb{background:var(--fill);border-radius:9px;padding:10px 13px;display:inline-block;
+    font-size:13.5px;max-width:80%}
+.ans{font-size:13.5px}
+.cite{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;
+      border:1px solid var(--line);border-radius:4px;font:10px ui-monospace,monospace;
+      color:var(--mid);vertical-align:2px;margin:0 1px;background:var(--white);padding:0 3px}
+.sources{margin-top:15px;border-top:1px solid var(--soft);padding-top:12px}
+.lbl{font:10px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;
+     color:var(--faint);margin-bottom:9px}
+.src{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border:1px solid var(--soft);
+     border-radius:7px;margin-bottom:6px;font-size:12.5px}
+.src .n{font:10px ui-monospace,monospace;color:var(--faint);border:1px solid var(--line);
+        border-radius:4px;padding:1px 4px;flex:0 0 auto}
+.src .t{flex:1;min-width:0}
+.src .t b{font-weight:560;display:block;margin-bottom:2px}
+.src .t span{color:var(--faint);font-size:11.5px}
+.stale{color:var(--warn)}
+.actbar{display:flex;gap:7px;margin-top:12px}
+.mini{border:1px solid var(--soft);border-radius:6px;padding:4px 9px;font-size:11.5px;color:var(--faint)}
+
+.steps{border:1px solid var(--soft);border-radius:8px;padding:12px 14px;background:#fbfbfc}
+.step{display:flex;gap:9px;align-items:center;font-size:12.5px;color:var(--mid);margin-bottom:8px}
+.step:last-child{margin:0}
+.tick{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);flex:0 0 14px}
+.tick.done{background:var(--fill2);border-color:var(--fill2)}
+.step.now{color:var(--ink)}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+       height:100%;text-align:center;padding:44px 24px}
+.empty h4{font-size:19px;margin:0 0 7px;font-weight:600;letter-spacing:-.01em}
+.empty p{color:var(--mid);font-size:13.5px;margin:0 0 22px;max-width:46ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:560px}
+.chip{border:1px solid var(--line);border-radius:16px;padding:7px 13px;font-size:12.5px;color:var(--mid)}
+
+.callout-box{border:1px solid var(--line);border-left:3px solid var(--mid);border-radius:7px;
+             padding:13px 15px;font-size:13.5px;background:#fbfbfc}
+.callout-box b{display:block;margin-bottom:5px;font-weight:600}
+.callout-box.warnbox{border-left-color:var(--warn)}
+.callout-box.badbox{border-left-color:var(--bad)}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;
+     color:var(--mid);background:var(--white);display:inline-block}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+.panel{width:288px;flex:0 0 288px;border-left:1px solid var(--soft);background:#fbfbfc;padding:16px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}
+.ph span{font:10px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;color:var(--faint)}
+.x{width:18px;height:18px;border-radius:4px;background:var(--fill2)}
+.doc{border:1px solid var(--soft);border-radius:7px;background:var(--white);padding:12px;margin-bottom:11px}
+.dt{font-size:13px;font-weight:560;margin-bottom:3px}
+.dm{font-size:11.5px;color:var(--faint);margin-bottom:10px}
+.hl{background:var(--fill);border-left:2px solid var(--faint);padding:8px 10px;border-radius:0 5px 5px 0}
+
+/* ── admin app ─────────────────────────────────── */
+.aside2{width:186px;flex:0 0 186px;border-right:1px solid var(--soft);background:#f7f7f9;
+        padding:14px 11px;display:flex;flex-direction:column}
+.navgrp{font:9.5px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.1em;
+        color:var(--faint);margin:16px 0 7px;padding-left:8px}
+.navgrp:first-of-type{margin-top:6px}
+.nitem{padding:6px 9px;border-radius:6px;margin-bottom:2px;font-size:12.5px;color:var(--mid);
+       display:flex;justify-content:space-between;align-items:center}
+.nitem.act{background:var(--ink);color:#fff}
+.badge{font:9.5px ui-monospace,monospace;background:var(--fill2);color:var(--mid);
+       border-radius:9px;padding:1px 6px}
+.nitem.act .badge{background:rgba(255,255,255,.22);color:#fff}
+
+.acontent{flex:1;min-width:0;display:flex;flex-direction:column}
+.abar{border-bottom:1px solid var(--soft);padding:13px 22px;display:flex;
+      align-items:center;justify-content:space-between;gap:12px}
+.atitle{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.abody{padding:20px 22px;flex:1;overflow:hidden}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:20px}
+.kpi{border:1px solid var(--soft);border-radius:8px;padding:12px 13px;background:var(--white)}
+.kpi .k{font:9.5px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;
+        color:var(--faint);margin-bottom:6px}
+.kpi .v{font-size:22px;font-weight:620;letter-spacing:-.02em;line-height:1}
+.kpi .d{font-size:11px;color:var(--faint);margin-top:5px}
+.kpi .d.up{color:var(--good)} .kpi .d.down{color:var(--bad)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font:9.5px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.09em;
+   color:var(--faint);font-weight:600;padding:0 10px 8px;border-bottom:1px solid var(--soft)}
+td{padding:10px;border-bottom:1px solid var(--soft);color:var(--mid);vertical-align:top}
+td b{color:var(--ink);font-weight:550}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;font:10px ui-monospace,monospace;border-radius:11px;padding:2px 8px;
+      border:1px solid var(--line);color:var(--mid)}
+.pill.ok{color:var(--good);border-color:#bcd6c8}
+.pill.warnp{color:var(--warn);border-color:#ddd0a4}
+.pill.badp{color:var(--bad);border-color:#e0bab6}
+
+.card{border:1px solid var(--soft);border-radius:9px;background:var(--white);padding:15px 16px;margin-bottom:13px}
+.card h5{margin:0 0 3px;font-size:13.5px;font-weight:600}
+.card .sub{font-size:11.5px;color:var(--faint);margin:0 0 12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+
+.histo{display:flex;align-items:flex-end;gap:4px;height:64px;margin:10px 0 6px}
+.histo i{flex:1;background:var(--fill2);border-radius:2px 2px 0 0;display:block}
+.histo i.hot{background:var(--faint)}
+.axis{display:flex;justify-content:space-between;font:9.5px ui-monospace,monospace;color:var(--faint)}
+
+.tree{font-size:12.5px}
+.tnode{padding:5px 8px;border-radius:5px;color:var(--mid);display:flex;
+       justify-content:space-between;align-items:center}
+.tnode b{color:var(--ink);font-weight:550}
+.tnode.lvl1{padding-left:24px} .tnode.lvl2{padding-left:42px}
+.tnode.sel{background:var(--fill)}
+
+.field{margin-bottom:14px}
+.field label{display:block;font:9.5px ui-monospace,monospace;text-transform:uppercase;
+             letter-spacing:.09em;color:var(--faint);margin-bottom:6px}
+.ctl{border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:12.5px;
+     color:var(--mid);background:var(--white);display:flex;justify-content:space-between;align-items:center}
+.slider{height:4px;background:var(--fill2);border-radius:2px;position:relative;margin:14px 0 6px}
+.slider i{position:absolute;top:-5px;width:14px;height:14px;border-radius:50%;
+          background:var(--ink);left:62%}
+.slider u{position:absolute;left:0;top:0;bottom:0;width:62%;background:var(--faint);
+          border-radius:2px;text-decoration:none}
+
+.gap{border:1px solid var(--soft);border-radius:8px;padding:13px 15px;margin-bottom:9px;background:var(--white)}
+.gaphead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:7px}
+.gapq{font-size:13.5px;font-weight:560}
+.gapn{font:10px ui-monospace,monospace;color:var(--faint);white-space:nowrap}
+.gapex{font-size:11.5px;color:var(--faint);padding-left:11px;border-left:2px solid var(--soft);margin-bottom:4px}
+
+/* mobile mock */
+.phone{width:270px;border:1px solid var(--line);border-radius:22px;overflow:hidden;
+       background:var(--white);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.pnotch{height:24px;background:var(--fill);border-bottom:1px solid var(--soft);
+        display:flex;align-items:center;justify-content:center}
+.pnotch i{width:52px;height:5px;border-radius:3px;background:var(--line)}
+.pbody{padding:14px 13px;min-height:400px;display:flex;flex-direction:column}
+.pbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.burger{width:17px;height:12px;border-top:2px solid var(--faint);border-bottom:2px solid var(--faint)}
+
+/* annotations */
+ol.ann{margin:12px 0 0;padding:0;list-style:none;counter-reset:a}
+ol.ann li{position:relative;padding-left:29px;margin-bottom:8px;font-size:13.5px;color:var(--mid)}
+ol.ann li:before{counter-increment:a;content:counter(a);position:absolute;left:0;top:1px;
+                 width:19px;height:19px;border-radius:50%;background:var(--ink);color:#fff;
+                 font:10px/19px ui-monospace,monospace;text-align:center}
+ol.ann li b{color:var(--ink);font-weight:560}
+.note{border:1px solid var(--line);border-left:3px solid var(--note);border-radius:7px;
+      padding:13px 15px;background:var(--white);margin:18px 0;font-size:13.5px;color:var(--mid)}
+.note b{color:var(--ink);display:block;margin-bottom:4px;font-weight:600}
+
+@media(max-width:960px){
+  .side,.panel,.aside2{display:none}
+  .kpis,.two,.three{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="in">
+    <div class="logo">Sambad <span>wireframes v1</span></div>
+    <div class="modes">
+      <button aria-selected="true" data-m="emp">Employee</button>
+      <button aria-selected="false" data-m="adm">Admin</button>
+    </div>
+  </div>
+  <div class="idx" id="idxEmp">
+    <a href="#e1">Sign in</a><a href="#e2">First run</a><a href="#e3">No documents</a>
+    <a href="#e4">Typing</a><a href="#e5">Working</a><a href="#e6">Answer</a>
+    <a href="#e7">Source panel</a><a href="#e8">Stale</a><a href="#e9">Abstain</a>
+    <a href="#e10">Partial</a><a href="#e11">Follow-up</a><a href="#e12">History</a>
+    <a href="#e13">Feedback</a><a href="#e14">Service down</a><a href="#e15">Mobile</a>
+  </div>
+  <div class="idx" id="idxAdm" style="display:none">
+    <a href="#a1">Overview</a><a href="#a2">Sync &amp; freshness</a><a href="#a3">Document</a>
+    <a href="#a4">Run detail</a><a href="#a5">ACL audit</a><a href="#a6">Access inspector</a>
+    <a href="#a7">Knowledge gaps</a><a href="#a8">Connectors</a><a href="#a9">Add connector</a>
+    <a href="#a10">People &amp; groups</a><a href="#a11">Model settings</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ═══════════════════════ EMPLOYEE ═══════════════════════ -->
+<div class="mode on" id="emp">
+
+<h2 class="sec">01 — Entry</h2>
+<h3 class="scr" id="e1">Sign in</h3>
+<p class="desc">Single sign-on only. No password fields, no account creation — the company's existing identity
+is what makes permission-aware retrieval work at all.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div style="min-height:360px;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center;max-width:330px;padding:30px">
+      <div style="font-weight:660;font-size:22px;letter-spacing:-.02em;margin-bottom:6px">Sambad</div>
+      <p style="color:var(--mid);font-size:13.5px;margin:0 0 24px">
+        Answers from your company's documents.</p>
+      <div class="btn pri" style="display:block;padding:11px;font-size:13px">Continue with your work account</div>
+      <p style="color:var(--faint);font-size:11.5px;margin:16px 0 0">
+        You'll only ever see documents you already have access to.</p>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e2">First run — nothing asked yet</h3>
+<p class="desc">An empty screen is an invitation, not a void. The example questions do the teaching that an
+onboarding tour would otherwise have to.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div>
+      <div style="font-size:12px;color:var(--faint);padding:6px 8px">Nothing yet</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread"><div class="empty">
+        <h4>Ask your company's documents</h4>
+        <p>Sambad reads your team's handbooks, policies and notes, and answers with links back to the original.</p>
+        <div class="chips">
+          <span class="chip">How do I expense a flight?</span>
+          <span class="chip">What's the on-call rotation?</span>
+          <span class="chip">Who signs off on new vendors?</span>
+        </div>
+      </div></div>
+      <div class="composer">
+        <div class="input"><span>Ask about anything in your company's documents</span><i class="send"></i></div>
+        <div class="hint">Sambad only reads documents you already have access to.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e3">Nothing indexed yet</h3>
+<p class="desc">Day one at a company that hasn't connected a source. Employees shouldn't see a broken app —
+they should see a clear reason and a person to ask.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main"><div class="thread"><div class="empty">
+      <h4>No documents connected yet</h4>
+      <p>Sambad can't answer anything until someone connects your team's documents. Your workspace admin can do this.</p>
+      <div class="acts" style="justify-content:center"><span class="btn">Message your admin</span></div>
+    </div></div></div>
+  </div>
+</div>
+
+<h2 class="sec">02 — Asking</h2>
+<h3 class="scr" id="e4">Typing a question</h3>
+<p class="desc">No autocomplete, no command palette, no slash commands. One box that behaves exactly as expected.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div><div class="sitem">Parental leave in Australia</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread"><div class="empty">
+        <h4>Ask your company's documents</h4>
+        <p>Sambad reads your team's handbooks, policies and notes, and answers with links back to the original.</p>
+      </div></div>
+      <div class="composer">
+        <div class="input focus"><span class="typed">What's our refund policy for annual plans?</span><i class="send on"></i></div>
+        <div class="hint">Enter to send · Shift + Enter for a new line</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e5">Working — the agentic loop, in plain words</h3>
+<p class="desc">A planner-then-verifier loop means several seconds of silence. These lines fill it truthfully
+without ever saying "retrieval", "embedding" or "rerank".</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div><div class="sitem act">Refund policy for annual…</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div>
+          <div class="qb">What's our refund policy for annual plans?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="steps">
+            <div class="step"><i class="tick done"></i> Looking through your documents</div>
+            <div class="step"><i class="tick done"></i> Found 4 possible matches</div>
+            <div class="step now"><i class="tick"></i> Checking them against your question</div>
+          </div>
+          <div class="actbar"><span class="mini">Stop</span></div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">03 — Answers</h2>
+<h3 class="scr" id="e6">Answer with sources</h3>
+<p class="desc">The default, healthy case. Claims carry inline numbers; the list underneath says where each came
+from and how old it is.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div><div class="sitem act">Refund policy for annual…</div>
+      <div class="sitem">Parental leave in Australia</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div>
+          <div class="qb">What's our refund policy for annual plans?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div>Annual plans can be refunded in full within 30 days of purchase <span class="cite">1</span>.
+                 After that, refunds are prorated from the cancellation date and processed within two
+                 billing cycles <span class="cite">2</span>.</div>
+            <div class="bar w90"></div><div class="bar w60"></div>
+          </div>
+          <div class="sources">
+            <div class="lbl">Where this came from</div>
+            <div class="src"><span class="n">1</span><div class="t">
+              <b>Billing &amp; Refunds Policy</b><span>Confluence · updated 3 days ago</span></div></div>
+            <div class="src"><span class="n">2</span><div class="t">
+              <b>Finance Ops Handbook</b><span>Confluence · updated 5 weeks ago</span></div></div>
+          </div>
+          <div class="actbar">
+            <span class="mini">Copy</span><span class="mini">Helpful</span>
+            <span class="mini">Not helpful</span>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e7">Source panel — slide-over, not a third column</h3>
+<p class="desc">Clicking a citation opens the passage in place with its surroundings. Phase 3 addition; it buys
+most of the split-view benefit without committing to a permanent three-column layout.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div><div class="sitem act">Refund policy for annual…</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div><div class="qb">What's our refund policy for annual plans?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div>Full refund within 30 days <span class="cite">1</span>, prorated after that <span class="cite">2</span>.</div>
+            <div class="bar w80"></div><div class="bar w40"></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+    <aside class="panel">
+      <div class="ph"><span>Source 1 of 2</span><i class="x"></i></div>
+      <div class="doc">
+        <div class="dt">Billing &amp; Refunds Policy</div>
+        <div class="dm">Confluence · updated 3 days ago</div>
+        <div class="stack" style="margin-bottom:9px"><div class="bar w90"></div><div class="bar s w80"></div></div>
+        <div class="hl stack"><div class="bar w90"></div><div class="bar s w70"></div><div class="bar s w50"></div></div>
+        <div class="stack" style="margin-top:9px"><div class="bar s w80"></div><div class="bar s w60"></div></div>
+      </div>
+      <div class="btn" style="text-align:center">Open in Confluence ↗</div>
+    </aside>
+  </div>
+</div>
+
+<h3 class="scr" id="e8">Answer from stale content</h3>
+<p class="desc">Freshness surfaces as a sentence, not a score. The warning attaches to the source, not the answer —
+the information may still be right, it just hasn't been checked in a while.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div><div class="qb">How do contractors submit invoices?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div>Contractor invoices go to accounts@ and are paid on the 15th of each month <span class="cite">1</span>.</div>
+            <div class="bar w70"></div>
+          </div>
+          <div class="sources">
+            <div class="lbl">Where this came from</div>
+            <div class="src"><span class="n">1</span><div class="t">
+              <b>Vendor Payment Runbook</b>
+              <span class="stale">Confluence · not updated in 14 months — worth double-checking</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e9">Abstain — nothing in the documents covers this</h3>
+<p class="desc">The screen your whole "honest agentic design" claim rests on. Name the gap, offer the near miss,
+and give a route to a human.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div><div class="qb">How many sick days do contractors get?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="callout-box">
+            <b>This isn't covered in your documents.</b>
+            Your handbook covers sick leave for employees, but says nothing about contractors.
+            Rather than guess, here's the closest thing it does say:
+            <div class="src" style="margin-top:11px"><span class="n">·</span><div class="t">
+              <b>Employee Handbook — Leave</b><span>Notion · updated 2 months ago</span></div></div>
+            <div class="acts">
+              <span class="btn pri">Ask People Ops</span>
+              <span class="btn">Flag as missing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+<ol class="ann">
+  <li><b>"This isn't covered" beats "I don't know."</b> It locates the gap in the documents, not in the person asking.</li>
+  <li><b>Flag as missing</b> is the front end of knowledge-gap analytics — one click and it appears in the admin's list.</li>
+  <li><b>The answer to an unanswerable question is a person.</b> Always offer one.</li>
+</ol>
+
+<h3 class="scr" id="e10">Partial answer — some of it is covered</h3>
+<p class="desc">The most common real-world case, and the one most systems get wrong by quietly filling the gap.
+Answer what's supported, then state plainly what isn't.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div>
+          <div class="qb">What's the notice period and how much is the payout?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div>Notice is four weeks for anyone past probation <span class="cite">1</span>.</div>
+            <div class="bar w60"></div>
+          </div>
+          <div class="callout-box warnbox" style="margin-top:13px">
+            <b>I couldn't find the payout part.</b>
+            Nothing in your documents covers payout amounts on notice. People Ops would know.
+          </div>
+          <div class="sources">
+            <div class="lbl">Where this came from</div>
+            <div class="src"><span class="n">1</span><div class="t">
+              <b>Employee Handbook — Exit</b><span>Notion · updated 3 weeks ago</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e11">Follow-up in the same thread</h3>
+<p class="desc">Multi-turn, with the earlier answer collapsed so the newest one stays in view. Context carries;
+sources are re-stated per answer rather than pooled.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="sgroup">Recent</div><div class="sitem act">Refund policy for annual…</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main">
+      <div class="thread">
+        <div style="border:1px solid var(--soft);border-radius:7px;padding:9px 12px;margin-bottom:18px;
+                    font-size:12.5px;color:var(--faint);display:flex;justify-content:space-between">
+          <span>What's our refund policy for annual plans? · answered</span><span>▾</span>
+        </div>
+        <div class="msg"><div class="who">You</div>
+          <div class="qb">Does that apply to plans bought through a reseller?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div>No — reseller purchases are refunded through the reseller under their own terms <span class="cite">1</span>.</div>
+            <div class="bar w70"></div>
+          </div>
+          <div class="sources">
+            <div class="lbl">Where this came from</div>
+            <div class="src"><span class="n">1</span><div class="t">
+              <b>Partner &amp; Reseller Agreement</b><span>Drive · updated 6 days ago</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">04 — Around the edges</h2>
+<h3 class="scr" id="e12">History with search</h3>
+<p class="desc">Once someone has asked thirty questions, the sidebar needs finding rather than scrolling.
+Grouped by time, searchable by wording.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">Sambad</div><div class="newbtn">＋ &nbsp;New question</div>
+      <div class="ctl" style="padding:6px 9px;font-size:12px;margin-bottom:15px">
+        <span style="color:var(--faint)">Search your questions</span></div>
+      <div class="sgroup">Today</div>
+      <div class="sitem act">Refund policy for annual…</div>
+      <div class="sitem">Reseller refund terms</div>
+      <div class="sgroup">Earlier this week</div>
+      <div class="sitem">Parental leave in Australia</div>
+      <div class="sitem">VPN setup for new laptops</div>
+      <div class="sitem">Who approves contractor…</div>
+      <div class="sgroup">Older</div>
+      <div class="sitem">Expense limits for travel</div>
+      <div class="sfoot"><i class="av"></i> Priya M.</div>
+    </aside>
+    <div class="main"><div class="thread"><div class="empty">
+      <h4>Ask your company's documents</h4>
+      <p>Sambad reads your team's handbooks, policies and notes, and answers with links back to the original.</p>
+    </div></div>
+    <div class="composer"><div class="input"><span>Ask about anything in your company's documents</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e13">Marking an answer wrong</h3>
+<p class="desc">"Not helpful" opens one question, not a form. What the admin needs to know is which failure it was,
+and that's a three-way choice.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack"><div class="bar w90"></div><div class="bar w70"></div></div>
+          <div class="callout-box" style="margin-top:14px">
+            <b>What went wrong?</b>
+            <div class="acts">
+              <span class="btn">It's out of date</span>
+              <span class="btn">It's not what I asked</span>
+              <span class="btn">It's just wrong</span>
+            </div>
+            <div style="margin-top:11px"><div class="ctl" style="font-size:12px;color:var(--faint)">
+              Anything else? (optional)</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e14">Service unavailable</h3>
+<p class="desc">The local model is down or the worker queue has stalled. Say what's happening in terms of what the
+person can and can't do, never in terms of your architecture.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev</span></div>
+  <div class="app">
+    <div class="main">
+      <div class="thread">
+        <div class="msg"><div class="who">You</div><div class="qb">What's the on-call rotation this month?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="callout-box badbox">
+            <b>Sambad can't answer right now.</b>
+            The answering service isn't responding. Your question is saved — try again in a few minutes.
+            <div class="acts"><span class="btn pri">Try again</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="composer"><div class="input"><span>Ask a follow-up</span><i class="send"></i></div></div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="e15">Mobile</h3>
+<p class="desc">Sidebar collapses behind a menu; sources stack under the answer. Nothing is removed — a person
+checking a policy from their phone needs the citation more than someone at a desk, not less.</p>
+<div style="display:flex;gap:18px;flex-wrap:wrap">
+  <div class="phone">
+    <div class="pnotch"><i></i></div>
+    <div class="pbody">
+      <div class="pbar"><i class="burger"></i><div class="brand" style="margin:0">Sambad</div><i class="av"></i></div>
+      <div style="flex:1">
+        <div class="msg"><div class="who">You</div>
+          <div class="qb" style="max-width:100%">What's our refund policy?</div></div>
+        <div class="msg"><div class="who">Sambad</div>
+          <div class="ans stack">
+            <div style="font-size:13px">Full refund within 30 days <span class="cite">1</span>, prorated after.</div>
+            <div class="bar w80"></div>
+          </div>
+          <div class="sources">
+            <div class="lbl">Where this came from</div>
+            <div class="src"><span class="n">1</span><div class="t">
+              <b>Billing &amp; Refunds</b><span>updated 3 days ago</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="input" style="margin-top:12px"><span style="font-size:12.5px">Ask a follow-up</span><i class="send"></i></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="pnotch"><i></i></div>
+    <div class="pbody">
+      <div class="pbar"><i class="burger"></i><div class="brand" style="margin:0">Sambad</div><i class="av"></i></div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center">
+        <div>
+          <h4 style="font-size:16px;margin:0 0 6px">Ask your company's documents</h4>
+          <p style="color:var(--mid);font-size:12.5px;margin:0 0 18px">Policies, handbooks, runbooks — whatever you can already open.</p>
+          <div class="chips" style="justify-content:center">
+            <span class="chip" style="font-size:11.5px">How do I expense a flight?</span>
+            <span class="chip" style="font-size:11.5px">On-call rotation?</span>
+          </div>
+        </div>
+      </div>
+      <div class="input" style="margin-top:12px"><span style="font-size:12.5px">Ask a question</span><i class="send"></i></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>The rule that governs every employee screen: denied documents are invisible.</b>
+  When permissions filter something out, the interface never mentions it. Saying "3 results were hidden"
+  leaks the existence of documents the person isn't cleared to know about — which defeats the point of
+  chunk-level access control. Denials are recorded in the admin audit log and nowhere else.
+</div>
+
+</div>
+
+<!-- ═══════════════════════ ADMIN ═══════════════════════ -->
+<div class="mode" id="adm">
+
+<h2 class="sec">01 — Overview</h2>
+<h3 class="scr" id="a1">Dashboard</h3>
+<p class="desc">The three numbers an admin actually cares about: is the index current, is it answering, and what
+can't it answer. Everything else is one click away.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin</span></div>
+  <div class="app">
+    <aside class="aside2">
+      <div class="brand">Sambad <span style="font-size:10px;color:var(--faint);font-weight:400">admin</span></div>
+      <div class="navgrp">Monitor</div>
+      <div class="nitem act">Overview</div>
+      <div class="nitem">Sync &amp; freshness <span class="badge">18</span></div>
+      <div class="nitem">Knowledge gaps <span class="badge">7</span></div>
+      <div class="navgrp">Security</div>
+      <div class="nitem">Access audit</div>
+      <div class="nitem">People &amp; groups</div>
+      <div class="navgrp">Setup</div>
+      <div class="nitem">Connectors</div>
+      <div class="nitem">Model</div>
+      <div class="sfoot"><i class="av"></i> Suman P.</div>
+    </aside>
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Overview</div>
+        <div class="row"><span class="btn">Last 7 days ▾</span></div></div>
+      <div class="abody">
+        <div class="kpis">
+          <div class="kpi"><div class="k">Documents indexed</div><div class="v">1,284</div>
+            <div class="d">across 2 sources</div></div>
+          <div class="kpi"><div class="k">Questions asked</div><div class="v">341</div>
+            <div class="d up">↑ 12% on last week</div></div>
+          <div class="kpi"><div class="k">Answered</div><div class="v">86%</div>
+            <div class="d">14% abstained</div></div>
+          <div class="kpi"><div class="k">Needs attention</div><div class="v">18</div>
+            <div class="d down">stale documents</div></div>
+        </div>
+        <div class="two">
+          <div class="card">
+            <h5>Sync activity</h5>
+            <p class="sub">Documents changed and re-indexed per day</p>
+            <div class="histo">
+              <i style="height:30%"></i><i style="height:52%"></i><i style="height:24%"></i>
+              <i style="height:70%"></i><i class="hot" style="height:96%"></i>
+              <i style="height:40%"></i><i style="height:34%"></i>
+            </div>
+            <div class="axis"><span>Mon</span><span>Sun</span></div>
+          </div>
+          <div class="card">
+            <h5>Most asked, least answered</h5>
+            <p class="sub">Where your documentation is thinnest</p>
+            <table>
+              <tr><td><b>Contractor leave &amp; benefits</b></td><td style="text-align:right">12 asks</td></tr>
+              <tr><td><b>Security review process</b></td><td style="text-align:right">9 asks</td></tr>
+              <tr><td><b>Expense limits by region</b></td><td style="text-align:right">6 asks</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-top:0">
+          <h5>Attention</h5>
+          <table>
+            <tr><td><span class="pill warnp">stale</span></td>
+              <td><b>18 documents</b> haven't changed in over a year but were cited 43 times this week</td>
+              <td style="text-align:right"><span class="btn">Review</span></td></tr>
+            <tr><td><span class="pill badp">failing</span></td>
+              <td><b>Google Drive</b> sync failed 3 times — credentials may have expired</td>
+              <td style="text-align:right"><span class="btn">Fix</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">02 — Freshness</h2>
+<h3 class="scr" id="a2">Sync &amp; freshness</h3>
+<p class="desc">Differentiator two, made visible. Connector health up top, then the documents that are both old
+and heavily used — the intersection that actually causes wrong answers.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/freshness</span></div>
+  <div class="app">
+    <aside class="aside2">
+      <div class="brand">Sambad <span style="font-size:10px;color:var(--faint);font-weight:400">admin</span></div>
+      <div class="navgrp">Monitor</div>
+      <div class="nitem">Overview</div>
+      <div class="nitem act">Sync &amp; freshness <span class="badge">18</span></div>
+      <div class="nitem">Knowledge gaps <span class="badge">7</span></div>
+      <div class="navgrp">Security</div>
+      <div class="nitem">Access audit</div><div class="nitem">People &amp; groups</div>
+      <div class="navgrp">Setup</div>
+      <div class="nitem">Connectors</div><div class="nitem">Model</div>
+      <div class="sfoot"><i class="av"></i> Suman P.</div>
+    </aside>
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Sync &amp; freshness</div>
+        <span class="btn pri">Re-index everything</span></div>
+      <div class="abody">
+        <div class="two" style="margin-bottom:15px">
+          <div class="card" style="margin:0">
+            <div class="row"><div class="grow">
+              <h5>Confluence</h5><p class="sub" style="margin:0">1,102 documents · synced 4 minutes ago</p>
+            </div><span class="pill ok">healthy</span></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="row"><div class="grow">
+              <h5>Google Drive</h5><p class="sub" style="margin:0">182 documents · last success 2 days ago</p>
+            </div><span class="pill badp">failing</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h5>How old is what people are reading?</h5>
+          <p class="sub">Documents by age, weighted by how often they're cited</p>
+          <div class="histo">
+            <i style="height:88%"></i><i style="height:64%"></i><i style="height:46%"></i>
+            <i style="height:30%"></i><i style="height:22%"></i><i class="hot" style="height:54%"></i>
+          </div>
+          <div class="axis"><span>&lt; 1 week</span><span>&gt; 1 year</span></div>
+        </div>
+        <div class="card">
+          <h5>Stale and still in use</h5>
+          <p class="sub">Old documents that answered questions this week — fix these first</p>
+          <table>
+            <thead><tr><th>Document</th><th>Source</th><th>Last changed</th><th>Cited</th><th></th></tr></thead>
+            <tr><td><b>Vendor Payment Runbook</b></td><td>Confluence</td>
+              <td class="stale">14 months ago</td><td>19×</td>
+              <td style="text-align:right"><span class="btn">Open</span></td></tr>
+            <tr><td><b>Onboarding — IT Setup</b></td><td>Confluence</td>
+              <td class="stale">11 months ago</td><td>14×</td>
+              <td style="text-align:right"><span class="btn">Open</span></td></tr>
+            <tr><td><b>Travel Policy 2024</b></td><td>Drive</td>
+              <td class="stale">19 months ago</td><td>10×</td>
+              <td style="text-align:right"><span class="btn">Open</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="a3">Document detail</h3>
+<p class="desc">One document, everything about it: freshness, who can see which parts, and the chunks themselves.
+This is where chunk-level permissions become concrete rather than theoretical.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/documents/482</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar">
+        <div><div class="atitle">Vendor Payment Runbook</div>
+          <div style="font-size:11.5px;color:var(--faint);margin-top:2px">Confluence · Finance space</div></div>
+        <div class="row"><span class="btn">Open in Confluence ↗</span><span class="btn pri">Re-index</span></div>
+      </div>
+      <div class="abody">
+        <div class="three" style="margin-bottom:15px">
+          <div class="kpi"><div class="k">Last changed</div><div class="v" style="font-size:17px">14 mo</div>
+            <div class="d stale">flagged stale</div></div>
+          <div class="kpi"><div class="k">Cited</div><div class="v" style="font-size:17px">19×</div>
+            <div class="d">this week</div></div>
+          <div class="kpi"><div class="k">Chunks</div><div class="v" style="font-size:17px">24</div>
+            <div class="d">3 restricted</div></div>
+        </div>
+        <div class="card">
+          <h5>Who can see this</h5>
+          <p class="sub">Mirrored from Confluence at last sync · 4 minutes ago</p>
+          <table>
+            <thead><tr><th>Rule</th><th>Applies to</th><th>Scope</th></tr></thead>
+            <tr><td><span class="pill ok">allow</span></td><td><b>finance-team</b> (14 people)</td><td>Whole document</td></tr>
+            <tr><td><span class="pill ok">allow</span></td><td><b>all-staff</b> (312 people)</td><td>Chunks 1–18, 22–24</td></tr>
+            <tr><td><span class="pill badp">deny</span></td><td><b>contractors</b> (26 people)</td><td>Chunks 19–21 — bank details</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h5>Chunks</h5>
+          <p class="sub">What retrieval actually searches</p>
+          <table>
+            <thead><tr><th>#</th><th>Preview</th><th>Access</th><th>Cited</th></tr></thead>
+            <tr><td>17</td><td><div class="bar w90"></div></td><td><span class="pill">all-staff</span></td><td>8×</td></tr>
+            <tr><td>18</td><td><div class="bar w80"></div></td><td><span class="pill">all-staff</span></td><td>6×</td></tr>
+            <tr><td>19</td><td><div class="bar w85"></div></td><td><span class="pill badp">finance only</span></td><td>2×</td></tr>
+            <tr><td>20</td><td><div class="bar w70"></div></td><td><span class="pill badp">finance only</span></td><td>1×</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="a4">Ingestion run detail</h3>
+<p class="desc">When a sync half-fails, the admin needs to know exactly which documents didn't make it and why —
+without reading worker logs.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/runs/1042</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar">
+        <div><div class="atitle">Sync run · Google Drive</div>
+          <div style="font-size:11.5px;color:var(--faint);margin-top:2px">Started 2 days ago · finished with errors</div></div>
+        <span class="btn pri">Retry failed</span>
+      </div>
+      <div class="abody">
+        <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+          <div class="kpi"><div class="k">Checked</div><div class="v" style="font-size:19px">182</div></div>
+          <div class="kpi"><div class="k">Unchanged</div><div class="v" style="font-size:19px">168</div></div>
+          <div class="kpi"><div class="k">Re-indexed</div><div class="v" style="font-size:19px">9</div></div>
+          <div class="kpi"><div class="k">Failed</div><div class="v" style="font-size:19px">5</div>
+            <div class="d down">needs attention</div></div>
+        </div>
+        <div class="card">
+          <h5>Failures</h5>
+          <table>
+            <thead><tr><th>Document</th><th>Reason</th><th>Attempts</th><th></th></tr></thead>
+            <tr><td><b>Q3 Board Pack.pdf</b></td><td>Couldn't read the file — it may be scanned images</td>
+              <td>3</td><td style="text-align:right"><span class="btn">Skip</span></td></tr>
+            <tr><td><b>Regional Pricing.xlsx</b></td><td>Access denied by Google Drive</td>
+              <td>3</td><td style="text-align:right"><span class="btn">Retry</span></td></tr>
+            <tr><td><b>Team Offsite Notes</b></td><td>Timed out while fetching</td>
+              <td>2</td><td style="text-align:right"><span class="btn">Retry</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">03 — Security</h2>
+<h3 class="scr" id="a5">Access audit</h3>
+<p class="desc">Differentiator one, made provable. Every question logs which chunks were returned and which were
+withheld — the evidence that permission filtering happened inside the query.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/audit</span></div>
+  <div class="app">
+    <aside class="aside2">
+      <div class="brand">Sambad <span style="font-size:10px;color:var(--faint);font-weight:400">admin</span></div>
+      <div class="navgrp">Monitor</div>
+      <div class="nitem">Overview</div><div class="nitem">Sync &amp; freshness <span class="badge">18</span></div>
+      <div class="nitem">Knowledge gaps <span class="badge">7</span></div>
+      <div class="navgrp">Security</div>
+      <div class="nitem act">Access audit</div><div class="nitem">People &amp; groups</div>
+      <div class="navgrp">Setup</div>
+      <div class="nitem">Connectors</div><div class="nitem">Model</div>
+      <div class="sfoot"><i class="av"></i> Suman P.</div>
+    </aside>
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Access audit</div>
+        <div class="row"><span class="btn">All people ▾</span><span class="btn">Last 24h ▾</span>
+          <span class="btn">Export CSV</span></div></div>
+      <div class="abody">
+        <div class="card" style="padding:0;overflow:hidden">
+          <table>
+            <thead><tr><th>Time</th><th>Person</th><th>Question</th><th>Used</th><th>Withheld</th><th></th></tr></thead>
+            <tr><td>14:32</td><td><b>Priya M.</b></td><td>What's our refund policy for annual plans?</td>
+              <td>6 chunks</td><td>0</td><td style="text-align:right">▾</td></tr>
+            <tr style="background:#fbfbfc"><td>14:20</td><td><b>Dev K.</b></td>
+              <td>How do contractors submit invoices?</td>
+              <td>4 chunks</td><td><span class="pill warnp">3 withheld</span></td>
+              <td style="text-align:right">▴</td></tr>
+            <tr style="background:#fbfbfc"><td colspan="6" style="padding:0 10px 14px 10px">
+              <div style="border:1px solid var(--soft);border-radius:7px;padding:12px 14px;background:var(--white)">
+                <div class="lbl">Withheld from this answer</div>
+                <table>
+                  <tr><td><b>Vendor Payment Runbook</b> · chunk 19</td>
+                    <td>Bank details — finance-team only</td>
+                    <td style="text-align:right"><span class="pill badp">deny rule</span></td></tr>
+                  <tr><td><b>Vendor Payment Runbook</b> · chunk 20</td>
+                    <td>Bank details — finance-team only</td>
+                    <td style="text-align:right"><span class="pill badp">deny rule</span></td></tr>
+                  <tr><td><b>Regional Pricing 2026</b> · chunk 4</td>
+                    <td>Not a member of pricing-committee</td>
+                    <td style="text-align:right"><span class="pill">no allow rule</span></td></tr>
+                </table>
+                <p style="font-size:11.5px;color:var(--faint);margin:11px 0 0">
+                  Dev K. was never shown these chunks and was not told they exist.</p>
+              </div></td></tr>
+            <tr><td>13:58</td><td><b>Ana R.</b></td><td>How many sick days do contractors get?</td>
+              <td>0 chunks</td><td>0</td><td style="text-align:right">▾</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<ol class="ann">
+  <li><b>Withheld ≠ denied person.</b> The log records the rule that fired, so a wrong permission model is debuggable.</li>
+  <li><b>The closing line matters.</b> It states the security property in words a compliance reviewer understands.</li>
+  <li><b>CSV export</b> is what turns this from a dashboard into something that survives an audit.</li>
+</ol>
+
+<h3 class="scr" id="a6">Access inspector — "what can this person see?"</h3>
+<p class="desc">The screen that answers the question every security review asks. Pick a person, and see their
+effective access after nested groups are expanded.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/inspector</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Access inspector</div>
+        <span class="btn">Dev K. ▾</span></div>
+      <div class="abody">
+        <div class="two">
+          <div class="card">
+            <h5>Groups</h5>
+            <p class="sub">Including groups inherited through nesting</p>
+            <div class="tree">
+              <div class="tnode"><b>all-staff</b><span class="pill">direct</span></div>
+              <div class="tnode"><b>engineering</b><span class="pill">direct</span></div>
+              <div class="tnode lvl1"><b>backend-guild</b><span class="pill">inherited</span></div>
+              <div class="tnode lvl2"><b>oncall-tier-2</b><span class="pill">inherited</span></div>
+              <div class="tnode"><b>contractors</b><span class="pill badp">deny source</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h5>Effective access</h5>
+            <p class="sub">After deny rules are applied</p>
+            <table>
+              <tr><td><b>Can see</b></td><td style="text-align:right">1,061 of 1,284 documents</td></tr>
+              <tr><td><b>Partial access</b></td><td style="text-align:right">37 documents</td></tr>
+              <tr><td><b>No access</b></td><td style="text-align:right">186 documents</td></tr>
+            </table>
+            <div style="margin-top:14px"><div class="ctl" style="font-size:12px;color:var(--faint)">
+              Check a specific document…</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h5>Partial access — documents where some chunks are hidden</h5>
+          <table>
+            <thead><tr><th>Document</th><th>Visible</th><th>Hidden</th><th>Rule</th></tr></thead>
+            <tr><td><b>Vendor Payment Runbook</b></td><td>21 chunks</td><td>3 chunks</td>
+              <td>deny · contractors</td></tr>
+            <tr><td><b>Compensation Bands</b></td><td>4 chunks</td><td>28 chunks</td>
+              <td>no allow rule</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">04 — Gaps</h2>
+<h3 class="scr" id="a7">Knowledge gaps</h3>
+<p class="desc">Every abstain and every "flag as missing" clustered by meaning. This turns the assistant into a
+documentation to-do list — the feature that makes admins keep the tab open.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/gaps</span></div>
+  <div class="app">
+    <aside class="aside2">
+      <div class="brand">Sambad <span style="font-size:10px;color:var(--faint);font-weight:400">admin</span></div>
+      <div class="navgrp">Monitor</div>
+      <div class="nitem">Overview</div><div class="nitem">Sync &amp; freshness <span class="badge">18</span></div>
+      <div class="nitem act">Knowledge gaps <span class="badge">7</span></div>
+      <div class="navgrp">Security</div>
+      <div class="nitem">Access audit</div><div class="nitem">People &amp; groups</div>
+      <div class="navgrp">Setup</div>
+      <div class="nitem">Connectors</div><div class="nitem">Model</div>
+      <div class="sfoot"><i class="av"></i> Suman P.</div>
+    </aside>
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Knowledge gaps</div>
+        <div class="row"><span class="btn">Open ▾</span><span class="btn">Last 30 days ▾</span></div></div>
+      <div class="abody">
+        <div class="gap">
+          <div class="gaphead">
+            <div class="gapq">Contractor leave and benefits</div>
+            <div class="gapn">12 people · 17 asks</div>
+          </div>
+          <div class="gapex">"How many sick days do contractors get?"</div>
+          <div class="gapex">"Do contractors get public holidays off?"</div>
+          <div class="gapex">"Is contractor leave paid or unpaid?"</div>
+          <div class="acts">
+            <span class="btn pri">Mark as written</span>
+            <span class="btn">Assign to People Ops</span>
+            <span class="btn">Not a gap</span>
+          </div>
+        </div>
+        <div class="gap">
+          <div class="gaphead">
+            <div class="gapq">Security review process for new vendors</div>
+            <div class="gapn">9 people · 11 asks</div>
+          </div>
+          <div class="gapex">"Who signs off on a new SaaS vendor?"</div>
+          <div class="gapex">"How long does a security review take?"</div>
+          <div class="acts">
+            <span class="btn pri">Mark as written</span>
+            <span class="btn">Assign</span>
+            <span class="btn">Not a gap</span>
+          </div>
+        </div>
+        <div class="gap" style="opacity:.62">
+          <div class="gaphead">
+            <div class="gapq">Expense limits by region</div>
+            <div class="gapn">6 people · 6 asks · resolved</div>
+          </div>
+          <div class="gapex">Marked written 4 days ago · asks dropped to 0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">
+  <b>The distinction this screen has to get right.</b>
+  A question can go unanswered because the content genuinely doesn't exist, or because retrieval failed to
+  find content that does. Only the first is a knowledge gap. Mislabelling the second sends admins off to
+  write documents they already have — so "Not a gap" needs to feed back into your retrieval evaluation,
+  not just disappear.
+</div>
+
+<h2 class="sec">05 — Setup</h2>
+<h3 class="scr" id="a8">Connectors</h3>
+<p class="desc">One connector in the MVP; the list is built for more so adding the second doesn't need a redesign.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/connectors</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Connectors</div><span class="btn pri">＋ Add a source</span></div>
+      <div class="abody">
+        <div class="card">
+          <div class="row">
+            <div class="grow">
+              <h5>Confluence</h5>
+              <p class="sub" style="margin:0">1,102 documents · syncing every 15 minutes · permissions mirrored</p>
+            </div>
+            <span class="pill ok">healthy</span>
+            <span class="btn">Settings</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <div class="grow">
+              <h5>Google Drive</h5>
+              <p class="sub" style="margin:0">182 documents · last success 2 days ago</p>
+            </div>
+            <span class="pill badp">failing</span>
+            <span class="btn">Settings</span>
+          </div>
+          <div class="callout-box badbox" style="margin-top:12px;font-size:12.5px">
+            <b>Sambad can't reach Google Drive.</b>
+            The access token was revoked or has expired. Reconnecting will resume syncing from where it stopped.
+            <div class="acts"><span class="btn pri">Reconnect</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="a9">Adding a source</h3>
+<p class="desc">Three decisions, not thirty. The permissions line is the one that matters and it's stated as a
+promise rather than a checkbox.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/connectors/new</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Add a source</div><span class="btn">Cancel</span></div>
+      <div class="abody" style="max-width:560px">
+        <div class="field"><label>Where are the documents?</label>
+          <div class="ctl"><span>Confluence</span><span>▾</span></div></div>
+        <div class="field"><label>Connect</label>
+          <div class="btn pri" style="display:block;text-align:center;padding:10px">
+            Sign in to Confluence</div>
+          <p style="font-size:11.5px;color:var(--faint);margin:8px 0 0">
+            Sambad reads documents and their permissions. It never writes anything back.</p></div>
+        <div class="field"><label>Which spaces?</label>
+          <div class="ctl"><span>All spaces I can access</span><span>▾</span></div></div>
+        <div class="field"><label>How often should it check for changes?</label>
+          <div class="ctl"><span>Every 15 minutes</span><span>▾</span></div></div>
+        <div class="callout-box" style="margin:20px 0">
+          <b>Permissions come across too.</b>
+          Everyone sees only what they can already open in Confluence. Sambad never widens access —
+          if someone loses access there, they lose it here at the next sync.
+        </div>
+        <div class="acts"><span class="btn pri">Add source and start indexing</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="a10">People &amp; groups</h3>
+<p class="desc">Read-only mirror of the source system's identity model, including nesting. Editing happens where
+the groups actually live — this view exists so an admin can see what Sambad believes.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/people</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar"><div class="atitle">People &amp; groups</div>
+        <div class="row"><span style="font-size:11.5px;color:var(--faint)">Synced 4 minutes ago</span>
+          <span class="btn">Re-sync</span></div></div>
+      <div class="abody">
+        <div class="two">
+          <div class="card">
+            <h5>Groups</h5>
+            <p class="sub">Nested groups are expanded at question time</p>
+            <div class="tree">
+              <div class="tnode"><b>all-staff</b><span class="pill">312</span></div>
+              <div class="tnode lvl1"><b>engineering</b><span class="pill">84</span></div>
+              <div class="tnode lvl2 sel"><b>backend-guild</b><span class="pill">21</span></div>
+              <div class="tnode lvl2"><b>frontend-guild</b><span class="pill">19</span></div>
+              <div class="tnode lvl1"><b>finance-team</b><span class="pill">14</span></div>
+              <div class="tnode"><b>contractors</b><span class="pill">26</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h5>backend-guild</h5>
+            <p class="sub">21 people · nested inside engineering</p>
+            <table>
+              <thead><tr><th>Person</th><th>Via</th><th>Asked</th></tr></thead>
+              <tr><td><b>Dev K.</b></td><td>direct</td><td>34</td></tr>
+              <tr><td><b>Ana R.</b></td><td>direct</td><td>12</td></tr>
+              <tr><td><b>Priya M.</b></td><td>oncall-tier-2</td><td>41</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 class="scr" id="a11">Model settings</h3>
+<p class="desc">The pluggable LLM layer as a settings page. Local and hosted are peers, not a default and an
+escape hatch — that's the whole privacy pitch, expressed as a form.</p>
+<div class="frame">
+  <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">sambad.spokhrel.dev/admin/model</span></div>
+  <div class="app">
+    <div class="acontent">
+      <div class="abar"><div class="atitle">Model</div><span class="btn pri">Save changes</span></div>
+      <div class="abody" style="max-width:600px">
+        <div class="card">
+          <h5>Where answers are generated</h5>
+          <p class="sub">Nothing leaves your infrastructure unless you choose a hosted endpoint</p>
+          <div class="two" style="gap:10px">
+            <div class="ctl" style="border-color:var(--ink);box-shadow:0 0 0 3px rgba(28,28,30,.06)">
+              <span style="color:var(--ink)"><b>On this server</b><br>
+                <span style="font-size:11px;color:var(--faint)">Ollama · llama-3-8b</span></span>
+              <span>●</span></div>
+            <div class="ctl"><span><b>Hosted endpoint</b><br>
+              <span style="font-size:11px;color:var(--faint)">Your own API key</span></span>
+              <span>○</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h5>Models</h5>
+          <div class="field"><label>Answering model</label>
+            <div class="ctl"><span>llama-3-8b-instruct</span><span>▾</span></div></div>
+          <div class="field" style="margin:0"><label>Search model</label>
+            <div class="ctl"><span>bge-base-en-v1.5</span><span>▾</span></div>
+            <p style="font-size:11.5px;color:var(--faint);margin:8px 0 0">
+              Changing this re-indexes all 1,284 documents. Takes about 40 minutes.</p></div>
+        </div>
+        <div class="card">
+          <h5>When to say "I don't know"</h5>
+          <p class="sub">How certain Sambad must be before it answers at all</p>
+          <div class="slider"><u></u><i></i></div>
+          <div class="axis"><span>Answer more often</span><span>Only when certain</span></div>
+          <p style="font-size:12px;color:var(--mid);margin:12px 0 0">
+            At the current setting, Sambad declined <b>14%</b> of questions last week.</p>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="row"><div class="grow">
+            <h5>Connection</h5>
+            <p class="sub" style="margin:0">Last checked 2 minutes ago · 340ms</p>
+          </div><span class="pill ok">reachable</span><span class="btn">Test</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+const ms=document.querySelectorAll('.modes button');
+ms.forEach(b=>b.addEventListener('click',()=>{
+  ms.forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.mode').forEach(s=>s.classList.toggle('on',s.id===b.dataset.m));
+  document.getElementById('idxEmp').style.display = b.dataset.m==='emp'?'flex':'none';
+  document.getElementById('idxAdm').style.display = b.dataset.m==='adm'?'flex':'none';
+  window.scrollTo({top:0,behavior:'smooth'});
+}));
+</script>
+</body>
+</html>
