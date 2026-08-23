@@ -1,0 +1,58 @@
+services:
+
+  api:
+    command: uvicorn sambad.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend/src:/app/src
+    ports:
+      - "8000:8000"
+
+  worker:
+    command: >
+      watchmedo auto-restart --directory=/app/src --pattern=*.py --recursive
+      -- celery -A sambad.worker.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./backend/src:/app/src
+
+  db:
+    ports:
+      - "5432:5432"
+
+  minio:
+    ports:
+      - "9001:9001"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  redis-ui:
+    image: redis/redisinsight:latest
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  pgadmin_data:
+  redisinsight_data:
