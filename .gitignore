@@ -124,3 +124,8 @@ Thumbs.db
 *.bak
 *.tmp
 .cache/
+*.pem
+*.key
+data/
+minio-data/
+postgres-data/
