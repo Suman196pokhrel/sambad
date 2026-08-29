@@ -74,7 +74,6 @@ htmlcov/
 *.egg
 .installed.cfg
 poetry.lock.bak
-.python-version
 
 # ==============================
 # Celery
