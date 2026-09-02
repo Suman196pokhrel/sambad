@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/imgs/sambad-mark-dark.svg">
+  <img src="docs/imgs/sambad-mark.svg" alt="Sambad" width="64">
+</picture>
+
 # Sambad
 
 **Ask your documents anything, and know where the answer came from.**
