@@ -17,7 +17,7 @@ Ollama or vLLM, or a private cloud endpoint. `docker compose up`.
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js, TypeScript |
+| Frontend | React, TypeScript (Vite) |
 | Backend | FastAPI, Python |
 | Database | PostgreSQL + pgvector |
 | Jobs | Celery, Redis |
@@ -32,7 +32,7 @@ Ollama or vLLM, or a private cloud endpoint. `docker compose up`.
 ```
 sambad/
 ├── backend/           FastAPI service, Celery workers, CLI
-├── frontend/          Next.js app
+├── frontend/          Vite + React app
 ├── docker/            Config for third-party services
 └── docs/              Decisions, schema, deferred work
 ```
@@ -83,11 +83,8 @@ against S3 or any compatible store by changing configuration.
 
 ### Frontend
 
-```
-app/                   Routes (App Router)
-components/            UI components
-lib/                   API client, hooks, utilities
-```
+Vite + React + TypeScript. Currently the stock Vite scaffold; routing,
+component conventions, and styling are not decided yet.
 
 ### Docker
 
