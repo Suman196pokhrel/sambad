@@ -3,7 +3,17 @@ name = "sambad"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "alembic>=1.19.1",
+    "boto3>=1.43.83",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "pgvector>=0.5.0",
+    "psycopg[binary,pool]>=3.3.4",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.52",
+    "uvicorn[standard]>=0.52.4",
+]
 
 [build-system]
 requires = ["hatchling"]
