@@ -14,6 +14,16 @@ services:
     volumes:
       - ./backend/src:/app/src
 
+  frontend:
+    build:
+      target: builder
+    command: pnpm dev --host 0.0.0.0 --port 80
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:80"
+
   db:
     ports:
       - "5432:5432"
