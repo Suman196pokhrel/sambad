@@ -1438,39 +1438,50 @@ const ADMIN = {
 
   /* ── add a source: four short steps ── */
   newsource: {
-    crumb: () => ['#/admin/connectors', 'Add a source'],
-    init: () => { tmp.step ??= 0; tmp.type ??= null; tmp.connected ??= false; tmp.files ??= []; tmp.spaces ??= null; tmp.freq ??= 'Every 15 minutes'; },
+    crumb: () => ['#/admin/connectors', 'Add sources'],
+    init: () => { tmp.step ??= 0; tmp.sources ??= []; tmp.drafts ??= {}; },
     body: () => {
-      const taken = S.connectors.map(c => c.name), up = tmp.type === 'Upload files', steps = ['Choose a source', up ? 'Add files' : 'Connect', 'Choose what to include', 'Review'];
+      const taken = S.connectors.map(c => c.src || c.name), steps = ['Choose sources', 'Connect', 'Choose what to include', 'Review'];
       const welcome = ctx.q.get('welcome') && S.flags.emptyWorkspace
-        ? `<div class="note good" style="margin-bottom:22px">${ic('check')}<div><b>Welcome to Sambad, ${esc(first(S.session.name))}. ${esc(S.workspace)} is ready.</b>Connect the place your team keeps its documents. Everything else in the admin console fills in from here.</div></div>` : '';
-      const can = [!!tmp.type, up ? tmp.files.length > 0 : tmp.connected, up || (tmp.spaces?.length ?? 1) > 0, true][tmp.step];
-      const spaces = D.sourceTypes[tmp.type] || [], picked = tmp.spaces ?? spaces;
-      const views = [
-        `<div class="srcgrid">${Object.keys(D.sourceTypes).map(t => `<button class="srcopt ${tmp.type === t ? 'on' : ''}" data-act="srcPick" data-t="${t}" ${taken.includes(t) ? 'disabled' : ''}>${glyph(t, 'lg')}<span><b>${t}</b><small>${taken.includes(t) ? 'Already connected' : D.sourceBlurb[t]}</small></span></button>`).join('')}</div>`,
-        up ? `<div class="drop" data-act="pickFiles" id="drop">${ic('upload')}<div style="margin-top:6px">Drop files here or <b>browse</b></div><div class="small muted">PDF, Word, Markdown. Up to 50 MB each.</div></div>
-              <input type="file" id="fileIn" multiple hidden>${tmp.files.map(f => `<div class="file"><span>${esc(f.name)}</span><span class="muted">${f.size}</span></div>`).join('')}
-              <div class="autos" style="margin-top:10px"><button class="auto" type="button" data-act="sampleFiles">${SPARK} Add sample files</button></div>`
-          : tmp.connected ? `<div class="note good">${ic('check')}<div><b>Connected as ${esc(S.session.email)}</b>Sambad can read ${tmp.type}. It never writes anything back.</div></div>`
-          : `<div class="panel flat center" style="padding:30px">${glyph(tmp.type || '?', 'lg')}<p class="mid" style="margin:12px auto 16px;max-width:40ch">Sambad reads documents and their permissions. It never writes anything back.</p>
-              <button class="btn pri" data-act="srcConnect">Sign in to ${tmp.type}</button></div>`,
-        up ? `<div class="note">${ic('info')}<div>Uploaded files have no permissions of their own, so everyone in the workspace can get answers from them.</div></div>`
-          : `<div class="label">Spaces</div><div class="spaces">${spaces.map(s => `<button class="chip ${picked.includes(s) ? 'on' : ''}" data-act="spaceToggle" data-s="${esc(s)}">${picked.includes(s) ? ic('check') : ''}${esc(s)}</button>`).join('')}</div>
-            <div class="label" style="margin-top:20px">How often to check for changes</div>${seg('srcFreq', [['Every 15 minutes', '15 min'], ['Every hour', 'Hourly'], ['Every 6 hours', '6 hours'], ['Once a day', 'Daily']], tmp.freq)}`,
-        `<div class="review"><div><span>Source</span><b>${tmp.type}</b></div>${up ? `<div><span>Files</span><b>${tmp.files.length}</b></div>` : `<div><span>Signed in as</span><b>${esc(S.session.email)}</b></div><div><span>Spaces</span><b>${picked.length === spaces.length ? 'All of them' : esc(picked.join(', '))}</b></div><div><span>Checks for changes</span><b>${tmp.freq}</b></div>`}</div>
-          <div class="note brand" style="margin-top:16px">${ic('shield')}<div><b>${up ? 'Sambad keeps the only copy, on your own server.' : 'Permissions come across too.'}</b>${up ? 'Use a connected source for anything that needs restricted access.' : `Everyone sees only what they can already open in ${tmp.type}. Sambad never widens access, and if someone loses access there, they lose it here at the next sync.`}</div></div>`,
-      ];
-      return `${phead('Add a source', 'Four short steps. You can change any of this later.', `<button class="auto" data-act="fillSource">${SPARK} Fill for me</button>`)}
-        <div style="max-width:720px">${welcome}<div class="steps">${steps.map((s, i) => `<div class="stp ${i < tmp.step ? 'done' : i === tmp.step ? 'now' : ''}"><i></i>${s}</div>`).join('')}</div>
-          <div class="panel" style="padding:22px">${views[tmp.step]}</div>
+        ? `<div class="note good" style="margin-bottom:22px">${ic('check')}<div><b>Welcome to Sambad, ${esc(first(S.session.name))}. ${esc(S.workspace)} is ready.</b>Choose the places your team keeps its documents. You can connect several at once.</div></div>` : '';
+      const choice = `<p class="small mid">Select one or more sources to get started.</p><div class="srcgrid">${Object.keys(D.sourceTypes).map(t => {
+        const selected = tmp.sources.includes(t), connected = taken.includes(t) && t !== 'Upload files';
+        return `<button class="srcopt ${selected ? 'on' : ''}" data-act="srcPick" data-t="${t}" aria-pressed="${selected}" ${connected ? 'disabled' : ''}>
+          <span class="srcopt-head">${glyph(t, 'lg')}<span class="src-check" aria-hidden="true">${selected ? ic('check') : ''}</span></span>
+          <span><b>${t}</b><small>${connected ? 'Already connected' : D.sourceBlurb[t]}</small></span></button>`;
+      }).join('')}</div><p class="small mid" aria-live="polite">${tmp.sources.length} selected</p>`;
+      const views = tmp.step === 0 ? choice : tmp.sources.map(t => {
+        const d = sourceDraft(t), up = t === 'Upload files', spaces = D.sourceTypes[t], picked = d.spaces;
+        let content;
+        if (tmp.step === 1) {
+          content = up ? `<div class="drop" data-act="pickFiles" id="drop" role="button" tabindex="0">${ic('upload')}<div style="margin-top:6px">Drop files here or <b>browse</b></div><div class="small muted">PDF, Word, Markdown. Up to 50 MB each.</div></div>
+            <input type="file" id="fileIn" multiple hidden>${d.files.map(f => `<div class="file"><span>${esc(f.name)}</span><span class="muted">${esc(f.size)}</span></div>`).join('')}
+            <div class="autos" style="margin-top:10px"><button class="auto" type="button" data-act="sampleFiles">${SPARK} Add sample files</button></div>`
+            : d.connected ? `<div class="note good">${ic('check')}<div><b>Connected as ${esc(S.session.email)}</b>Sambad can read ${t}. It never writes anything back.</div></div>`
+            : `<p class="mid">Sambad reads documents and their permissions. It never writes anything back.</p><button class="btn pri" data-act="srcConnect" data-t="${t}">Sign in to ${t}</button>`;
+        } else if (tmp.step === 2) {
+          content = up ? `<div class="note">${ic('info')}<div>Uploaded files have no permissions of their own, so everyone in the workspace can get answers from them.</div></div>`
+            : `<div class="label">Spaces</div><div class="spaces">${spaces.map(sp => `<button class="chip ${picked.includes(sp) ? 'on' : ''}" data-act="spaceToggle" data-t="${t}" data-s="${esc(sp)}" aria-pressed="${picked.includes(sp)}">${picked.includes(sp) ? ic('check') : ''}${esc(sp)}</button>`).join('')}</div>
+              ${!picked.length ? '<p class="small bad">Choose at least one space to continue.</p>' : ''}
+              <div class="label" style="margin-top:20px">How often to check for changes</div><div class="source-frequency">${seg('srcFreq', [['Every 15 minutes', '15 min'], ['Every hour', 'Hourly'], ['Every 6 hours', '6 hours'], ['Once a day', 'Daily']], d.freq, `data-t="${t}"`)}</div>`;
+        } else {
+          content = `<div class="review">${up ? `<div><span>Files</span><b>${d.files.length}</b></div>` : `<div><span>Signed in as</span><b>${esc(S.session.email)}</b></div><div><span>Spaces</span><b>${picked.length === spaces.length ? 'All of them' : esc(picked.join(', '))}</b></div><div><span>Checks for changes</span><b>${d.freq}</b></div>`}</div>
+            <div class="note brand" style="margin-top:16px">${ic('shield')}<div><b>${up ? 'Sambad keeps the only copy, on your own server.' : 'Permissions come across too.'}</b>${up ? 'Everyone in this workspace can get answers from these files. Use a connected source for anything that needs restricted access.' : `Everyone sees only what they can already open in ${t}. Sambad never widens access, and if someone loses access there, they lose it here at the next sync.`}</div></div>`;
+        }
+        return `<section class="source-section"><h2>${t}</h2>${content}</section>`;
+      }).join('');
+      return `${phead('Add sources', 'Four short steps. Connect one source or several together.', `<button class="auto" data-act="fillSource">${SPARK} Fill for me</button>`)}
+        <div class="source-wizard">${welcome}<div class="steps">${steps.map((st, i) => `<div class="stp ${i < tmp.step ? 'done' : i === tmp.step ? 'now' : ''}" ${i === tmp.step ? 'aria-current="step"' : ''}><i></i>${st}</div>`).join('')}</div>
+          <div class="panel source-panel">${views}</div>
           <div class="stepnav"><button class="btn ghost" data-act="stepBack" ${tmp.step ? '' : 'style="visibility:hidden"'}>${ic('back')} Back</button>
-            ${tmp.step < 3 ? `<button class="btn pri" data-act="stepNext" ${can ? '' : 'disabled'}>Continue</button>` : `<button class="btn brand" data-act="addSource">Add source and start indexing</button>`}</div></div>`;
+            ${tmp.step < 3 ? `<button class="btn pri" data-act="stepNext" ${sourceStepReady(tmp.step) ? '' : 'disabled'}>Continue</button>` : `<button class="btn brand" data-act="addSource">Add ${tmp.sources.length === 1 ? 'source' : `${tmp.sources.length} sources`} and start reading</button>`}</div></div>`;
     },
     mount: () => {
       const drop = $('#drop'), fin = $('#fileIn');
       if (!drop) return;
-      const add = files => { tmp.files.push(...[...files].map(f => ({ name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1e3)) + ' KB' }))); refresh(); };
+      const add = files => { sourceDraft('Upload files').files.push(...[...files].map(f => ({ name: f.name, size: f.size > 1e6 ? (f.size / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1e3)) + ' KB' }))); refresh(); };
       fin.onchange = () => add(fin.files);
+      drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fin.click(); } };
       drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
       drop.ondragleave = () => drop.classList.remove('over');
       drop.ondrop = e => { e.preventDefault(); add(e.dataTransfer.files); };
@@ -1750,30 +1761,50 @@ function tickConn(c) {
   }, 140);
 }
 
-A.srcPick = el => { if (tmp.type !== el.dataset.t) Object.assign(tmp, { type: el.dataset.t, connected: false, files: [], spaces: null }); refresh(); };
-A.stepNext = () => { tmp.step = Math.min(3, tmp.step + 1); refresh(); };
-A.stepBack = () => { tmp.step = Math.max(0, tmp.step - 1); refresh(); };
-A.spaceToggle = el => {
-  const all = D.sourceTypes[tmp.type], cur = new Set(tmp.spaces ?? all), s = el.dataset.s;
-  cur.has(s) ? cur.delete(s) : cur.add(s);
-  tmp.spaces = all.filter(x => cur.has(x));
+// Each selected source owns its connection, spaces and schedule throughout the wizard.
+function sourceDraft(t) {
+  return tmp.drafts[t] ??= { connected: false, files: [], spaces: [...D.sourceTypes[t]], freq: 'Every 15 minutes' };
+}
+function sourceStepReady(step) {
+  return !!tmp.sources.length && tmp.sources.every(t => {
+    const d = sourceDraft(t), up = t === 'Upload files';
+    return step === 0 || (up ? d.files.length > 0 : d.connected && (step === 1 || d.spaces.length > 0));
+  });
+}
+A.srcPick = el => {
+  const t = el.dataset.t;
+  tmp.sources = tmp.sources.includes(t) ? tmp.sources.filter(x => x !== t) : [...tmp.sources, t];
+  sourceDraft(t);
   refresh();
 };
-A.srcFreq = el => { slideSeg(el); tmp.freq = el.dataset.v; };
-async function connectSource(el) { await busy(el, 1300); if (!onPage('newsource')) return; tmp.connected = true; refresh(); toast(`Connected to ${tmp.type}`); }
+A.stepNext = () => { if (sourceStepReady(tmp.step)) { tmp.step = Math.min(3, tmp.step + 1); refresh(); } };
+A.stepBack = () => { tmp.step = Math.max(0, tmp.step - 1); refresh(); };
+A.spaceToggle = el => {
+  const d = sourceDraft(el.dataset.t), sp = el.dataset.s;
+  d.spaces = d.spaces.includes(sp) ? d.spaces.filter(x => x !== sp) : D.sourceTypes[el.dataset.t].filter(x => x === sp || d.spaces.includes(x));
+  refresh();
+};
+A.srcFreq = el => { slideSeg(el); sourceDraft(el.parentElement.dataset.t).freq = el.dataset.v; };
+async function connectSource(el) {
+  const drafts = tmp.drafts, t = el.dataset.t, d = sourceDraft(t);
+  await busy(el, 1300);
+  if (!onPage('newsource') || tmp.drafts !== drafts) return;
+  d.connected = true; refresh(); toast(`Connected to ${t}`);
+}
 A.srcConnect = el => connectSource(el);
 A.pickFiles = () => $('#fileIn')?.click();
-A.sampleFiles = () => { tmp.files.push(...D.sampleFiles); refresh(); };
+A.sampleFiles = () => { sourceDraft('Upload files').files.push(...clone(D.sampleFiles)); refresh(); };
 A.fillSource = async () => {
-  const taken = S.connectors.map(c => c.name);
-  Object.assign(tmp, { type: Object.keys(D.sourceTypes).find(t => !taken.includes(t) && t !== 'Upload files') || 'Upload files', connected: false, files: [], spaces: null, step: 0 });
-  refresh();
-  // Each pause is a chance for the visitor to leave the page, so stop if they did.
-  const here = () => onPage('newsource');
+  const taken = S.connectors.map(c => c.src || c.name);
+  const t = Object.keys(D.sourceTypes).find(t => !taken.includes(t) && t !== 'Upload files') || 'Upload files';
+  Object.assign(tmp, { sources: [t], drafts: {}, step: 0 });
+  const drafts = tmp.drafts;
+  sourceDraft(t); refresh();
+  const here = () => onPage('newsource') && tmp.drafts === drafts;
   await sleep(350); if (!here()) return;
   tmp.step = 1; refresh();
   await sleep(250); if (!here()) return;
-  if (tmp.type === 'Upload files') A.sampleFiles();
+  if (t === 'Upload files') A.sampleFiles();
   else { const b = $('[data-act=srcConnect]'); if (b) await connectSource(b); }
   await sleep(450); if (!here()) return;
   tmp.step = 2; refresh();
@@ -1781,19 +1812,21 @@ A.fillSource = async () => {
   tmp.step = 3; refresh();
 };
 A.addSource = async el => {
-  const up = tmp.type === 'Upload files';
-  if (!tmp.type) return;
+  if (!sourceStepReady(3)) return;
+  const drafts = tmp.drafts;
   await busy(el, 900);
-  if (!onPage('newsource')) return;
-  const picked = up ? 0 : (tmp.spaces ?? D.sourceTypes[tmp.type]).length;
-  const c = { id: 'c' + Date.now(), name: up ? 'Uploaded files' : tmp.type, src: tmp.type, docs: 0, total: up ? tmp.files.length : picked * 68,
-    status: 'indexing', synced: 'just now', freq: tmp.freq, progress: 0, beats: '' };
-  S.connectors.push(c);
-  save();
-  tmp = {};
+  if (!onPage('newsource') || tmp.drafts !== drafts || !sourceStepReady(3)) return;
+  const added = tmp.sources.filter(t => t === 'Upload files' || !S.connectors.some(c => (c.src || c.name) === t)).map((t, i) => {
+    const d = sourceDraft(t), up = t === 'Upload files';
+    return { id: 'c' + Date.now() + '-' + i, name: up ? 'Uploaded files' : t, src: t, docs: 0,
+      total: up ? d.files.length : d.spaces.length * 68, spaces: [...d.spaces],
+      status: 'indexing', synced: 'just now', freq: d.freq, progress: 0, beats: '' };
+  });
+  S.connectors.push(...added);
+  save(); tmp = {};
   go('#/admin/connectors');
-  toast(`Indexing ${c.name}. You can leave this page.`);
-  tickConn(c);
+  toast(`Reading ${added.length === 1 ? added[0].name : `${added.length} sources`}. You can leave this page.`);
+  added.forEach(tickConn);
 };
 
 A.pickGroup = el => { tmp.group = el.dataset.g; refresh(); };

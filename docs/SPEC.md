@@ -343,8 +343,8 @@ connector** (Confluence, per wireframe v1) plus uploaded files.
   - Each connector's status, sync frequency and the pause switch.
   - "Sync now", Reconnect when access has expired, and Disconnect
     (with a confirmation and an Undo).
-- **Add a source.** Four steps: choose a source, connect (or upload),
-  choose spaces and how often to check, then review. The permissions
+- **Add a source.** Four steps: choose one or more sources, connect each (or upload),
+  choose spaces and how often to check for each source, then review together. The permissions
   promise is stated plainly on the final step.
 - **People and groups.** A read-only mirror of the identity provider,
   including nested groups, with a re-sync button.
