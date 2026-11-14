@@ -59,8 +59,10 @@ Raw IP addresses are never stored, only a salted SHA-256 hash.
 You need a free Cloudflare account and Node.js.
 
 **Turnstile (dashboard):**
-1. Open Turnstile and add a widget in Managed mode. Add the hostname
-   `workers.dev` and, for local testing, `localhost`.
+1. Open Turnstile and add a widget in Managed mode. Add the exact
+   hostname `sambad-demo.<you>.workers.dev`, not `workers.dev`, which
+   would cover everyone's Workers. The Worker also refuses tokens made on
+   any other hostname.
 2. The **site key** is public. It goes in `../config.js` as
    `turnstileSiteKey`.
 3. The **secret key** is set on the Worker below. Never commit it.
@@ -119,7 +121,7 @@ tested yet; the first deploy is that test.
   sent once it reconnects. With no internet at all, the hosted page can't
   load, so open the copy from disk and export the feedback afterwards.
 - **Turnstile hostnames.** If the human check fails on the live site,
-  add the exact hostname (`sambad-demo.<you>.workers.dev`) to the
-  Turnstile widget.
+  check the widget lists the exact hostname (`sambad-demo.<you>.workers.dev`)
+  and that any other site serving the demo is in `ALLOWED_ORIGINS`.
 - **Visitors can see the endpoint URL.** It's public by design, which is
   why the Worker never trusts the page.

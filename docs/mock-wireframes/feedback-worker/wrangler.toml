@@ -1,7 +1,6 @@
 # Sambad demo on Cloudflare: deploy settings.
 # One Worker serves the clickable mock (the files in the folder above) and
-# collects its feedback at /feedback into a D1 database. Fill in database_id
-# after `npx wrangler d1 create sambad-feedback`. Secrets are set with
+# collects its feedback at /feedback into a D1 database. Secrets are set with
 # `npx wrangler secret put`, never written here. See README.md.
 
 name = "sambad-demo"
@@ -13,8 +12,8 @@ compatibility_date = "2025-10-01"
 directory = "../"
 
 [vars]
-# Other sites allowed to send feedback here. The Worker's own URL is always allowed.
-ALLOWED_ORIGINS = "http://localhost:8000"
+# Other sites allowed to send feedback here, comma separated. The Worker's own URL is always allowed.
+ALLOWED_ORIGINS = ""
 
 [[d1_databases]]
 binding = "DB"

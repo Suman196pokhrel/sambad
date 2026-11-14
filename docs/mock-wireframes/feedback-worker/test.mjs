@@ -90,7 +90,9 @@ const strict = { ...env, ALLOW_NO_TURNSTILE: undefined, TURNSTILE_SECRET: 's' };
 const realFetch = globalThis.fetch;
 globalThis.fetch = async () => new Response(JSON.stringify({ success: false }));
 assert.equal((await post([item()], { e: strict, token: 'bad' })).status, 403);
-globalThis.fetch = async () => new Response(JSON.stringify({ success: true }));
+globalThis.fetch = async () => new Response(JSON.stringify({ success: true, hostname: 'evil.workers.dev' }));
+assert.equal((await post([item()], { e: strict, token: 'elsewhere' })).status, 403, 'token made on another site is refused');
+globalThis.fetch = async () => new Response(JSON.stringify({ success: true, hostname: 'w.example' }));
 assert.equal((await post([item()], { e: strict, token: 'good', ip: '3.3.3.3', device: 'device-dddd0000' })).status, 200);
 globalThis.fetch = realFetch;
 

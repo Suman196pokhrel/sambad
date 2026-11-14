@@ -1,7 +1,7 @@
 /*
  * Sambad demo on Cloudflare: serves the clickable mock and collects its feedback.
  * Cloudflare serves the mock's files directly (see [assets] in wrangler.toml);
- * this code only runs for /feedback. The mock queues feedback in the
+ * this code runs for any path that isn't a file, and only /feedback does anything. The mock queues feedback in the
  * visitor's browser and posts it here in small batches. This Worker is the only place feedback is trusted:
  * it checks the origin, verifies a Cloudflare Turnstile token (proof a human
  * is at the page), validates every field, rate limits per IP and per visitor,
@@ -48,7 +48,9 @@ export default {
     const ip = req.headers.get('CF-Connecting-IP') || '0.0.0.0';
     if (env.ALLOW_NO_TURNSTILE !== 'true') {
       if (!env.TURNSTILE_SECRET) return json(500, { error: 'turnstile_not_configured' });
-      if (!await turnstileOk(env.TURNSTILE_SECRET, body.token, ip)) return json(403, { error: 'human_check_failed' });
+      // A token only counts if it was made on this site or an allowed one, not on any page using the public site key.
+      const hosts = [url.hostname, ...allowed.map(o => { try { return new URL(o).hostname; } catch { return ''; } })];
+      if (!await turnstileOk(env.TURNSTILE_SECRET, body.token, ip, hosts)) return json(403, { error: 'human_check_failed' });
     }
 
     const now = new Date(), iso = now.toISOString();
@@ -117,7 +119,7 @@ export function validate(it) {
   return { row };
 }
 
-async function turnstileOk(secret, token, ip) {
+async function turnstileOk(secret, token, ip, hosts) {
   if (typeof token !== 'string' || !token || token.length > 2048) return false;
   const form = new FormData();
   form.append('secret', secret);
@@ -125,7 +127,8 @@ async function turnstileOk(secret, token, ip) {
   form.append('remoteip', ip);
   try {
     const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
-    return (await r.json()).success === true;
+    const d = await r.json();
+    return d.success === true && hosts.includes(d.hostname);
   } catch { return false; }
 }
 
