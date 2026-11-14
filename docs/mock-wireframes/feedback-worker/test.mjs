@@ -56,14 +56,29 @@ r = await (await post([item({ website: 'http://spam' }), item({ elapsed_ms: 200 
 assert.equal(r.accepted.length, 2);
 assert.equal(count(), before);
 
-// Duplicates from the same device are dropped, inside a batch and across batches.
+// Duplicates from the same visitor are dropped, inside a batch and across batches.
 r = await (await post([item({ message: 'Same words' }), item({ message: 'same   WORDS' })])).json();
 assert.deepEqual(r.dropped.map(d => d.reason), ['duplicate']);
 r = await (await post([item({ message: 'Same words' })])).json();
 assert.deepEqual(r.dropped.map(d => d.reason), ['duplicate']);
 
+// One event laptop, two visitors: both can say "Love it", but a long pasted message counts once per IP.
+const V = n => 'visitor-' + n + '-0000';
+r = await (await post([item({ message: 'Love it', visitor: V('a') })], { ip: '4.4.4.4' })).json();
+r = await (await post([item({ message: 'Love it', visitor: V('b') })], { ip: '4.4.4.4' })).json();
+assert.equal(r.accepted.length, 1, 'short note from a second visitor is kept');
+const long = 'This would replace our wiki search entirely if it handled Jira.';
+await post([item({ message: long, visitor: V('c') })], { ip: '4.4.4.4' });
+r = await (await post([item({ message: long, visitor: V('d') })], { ip: '4.4.4.4' })).json();
+assert.deepEqual(r.dropped.map(d => d.reason), ['duplicate']);
+
+// One visitor can't flood: entries past the daily cap are dropped.
+for (let i = 0; i < LIMITS.perVisitorDay / 10; i++) await post(Array.from({ length: 10 }, () => item({ visitor: V('e') })), { ip: '5.5.5.' + i });
+r = await (await post([item({ visitor: V('e') })], { ip: '5.5.5.99' })).json();
+assert.deepEqual(r.dropped.map(d => d.reason), ['visitor_limit']);
+
 // Per-IP rate limit over 10 minutes.
-for (let i = 0; i < 4; i++) await post(Array.from({ length: 10 }, () => item()), { ip: '2.2.2.2', device: 'device-bbbb' + i + '000' });
+for (let i = 0; i < LIMITS.perIp10m / 10; i++) await post(Array.from({ length: 10 }, () => item()), { ip: '2.2.2.2', device: 'device-bbbb' + i + '000' });
 r = await post([item()], { ip: '2.2.2.2', device: 'device-cccc0000' });
 assert.equal(r.status, 429);
 

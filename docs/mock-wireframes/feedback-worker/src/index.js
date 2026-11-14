@@ -3,8 +3,9 @@
  * The clickable mock queues feedback in the visitor's browser and posts it
  * here in small batches. This Worker is the only place feedback is trusted:
  * it checks the origin, verifies a Cloudflare Turnstile token (proof a human
- * is at the page), validates every field, rate limits per IP and per device,
- * drops duplicates, and stores rows in D1. GET returns everything collected,
+ * is at the page), validates every field, rate limits per IP and per visitor,
+ * drops duplicates, and stores rows in D1. One event laptop serves many
+ * visitors, so per-person limits key on the visitor id, not the device. GET returns everything collected,
  * behind a bearer token that only the project owner has.
  *
  * Secrets (wrangler secret put): TURNSTILE_SECRET, ADMIN_TOKEN, IP_SALT.
@@ -12,11 +13,11 @@
  * local testing only and must never be set in production.
  */
 
-export const LIMITS = { batch: 10, bodyBytes: 32000, perIp10m: 40, perIpDay: 400, perDeviceDay: 80, minFillMs: 1200 };
+export const LIMITS = { batch: 10, bodyBytes: 32000, perIp10m: 60, perIpDay: 600, perVisitorDay: 40, minFillMs: 1200, ipDedupeChars: 30 };
 const MAX = { message: 2000, screen: 120, route: 200, target: 200, role: 40, company_size: 40, contact: 200, demo_role: 20 };
 const KINDS = ['feedback', 'vote', 'question', 'price'];
 const TOPICS = ['confusing', 'missing', 'idea', 'bug', 'pricing', 'like'];
-const COLS = ['id', 'received_at', 'created_at', 'device', 'kind', 'rating', 'topics', 'message', 'screen', 'route', 'target', 'role', 'company_size', 'contact', 'demo_role'];
+const COLS = ['id', 'received_at', 'created_at', 'device', 'visitor', 'kind', 'rating', 'topics', 'message', 'screen', 'route', 'target', 'role', 'company_size', 'contact', 'demo_role'];
 
 export default {
   async fetch(req, env) {
@@ -51,35 +52,40 @@ export default {
     const ipHash = await sha256((env.IP_SALT || 'sambad-demo') + ip);
     const tenMin = new Date(now - 10 * 60e3).toISOString(), day = new Date(now - 24 * 3600e3).toISOString();
     const use = await env.DB.prepare(
-      `SELECT TOTAL(ip_hash = ?1 AND received_at > ?2) AS ip10, TOTAL(ip_hash = ?1) AS ipday, TOTAL(device = ?3) AS devday
-       FROM feedback WHERE received_at > ?4 AND (ip_hash = ?1 OR device = ?3)`).bind(ipHash, tenMin, device, day).first();
+      `SELECT TOTAL(received_at > ?2) AS ip10, COUNT(*) AS ipday FROM feedback WHERE ip_hash = ?1 AND received_at > ?3`).bind(ipHash, tenMin, day).first();
     const n = items.length;
     if (use.ip10 + n > LIMITS.perIp10m) return json(429, { error: 'rate_limited', retry_after: 600 }, { 'Retry-After': '600' });
-    if (use.ipday + n > LIMITS.perIpDay || use.devday + n > LIMITS.perDeviceDay) return json(429, { error: 'daily_limit', retry_after: 3600 }, { 'Retry-After': '3600' });
+    if (use.ipday + n > LIMITS.perIpDay) return json(429, { error: 'daily_limit', retry_after: 3600 }, { 'Retry-After': '3600' });
 
     const accepted = [], dropped = [], rows = [];
     for (const it of items) {
       const id = typeof it?.id === 'string' && /^[a-z0-9-]{8,64}$/i.test(it.id) ? it.id : null;
       if (!id) { dropped.push({ id: String(it?.id ?? ''), reason: 'bad_id' }); continue; }
+      const visitor = typeof it.visitor === 'string' && /^[a-z0-9-]{8,64}$/i.test(it.visitor) ? it.visitor : device;
       // Bot traps: the hidden field is filled, or the form was sent faster than a person can.
       // Reported as accepted so a bot learns nothing, but never stored.
       if (it.website || (typeof it.elapsed_ms === 'number' && it.elapsed_ms < LIMITS.minFillMs)) { accepted.push(id); continue; }
       const v = validate(it);
       if (v.error) { dropped.push({ id, reason: v.error }); continue; }
+      const mine = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE visitor = ?1 AND received_at > ?2').bind(visitor, day).first();
+      if (mine.n + rows.filter(r => r.visitor === visitor).length >= LIMITS.perVisitorDay) { dropped.push({ id, reason: 'visitor_limit' }); continue; }
+      // The same words twice from one person is a duplicate. Across people on one IP (an event
+      // laptop, an office), only long messages count, so two visitors can both say "Love it".
       const msgHash = v.row.message ? await sha256(v.row.message.toLowerCase().replace(/\s+/g, ' ')) : null;
       if (msgHash) {
-        const dup = await env.DB.prepare('SELECT 1 FROM feedback WHERE msg_hash = ?1 AND (ip_hash = ?2 OR device = ?3) AND received_at > ?4 LIMIT 1')
-          .bind(msgHash, ipHash, device, day).first();
-        if (dup || rows.some(r => r.msgHash === msgHash)) { dropped.push({ id, reason: 'duplicate' }); continue; }
+        const wide = v.row.message.length > LIMITS.ipDedupeChars;
+        const dup = await env.DB.prepare('SELECT 1 FROM feedback WHERE msg_hash = ?1 AND (visitor = ?2 OR (?3 AND ip_hash = ?4)) AND received_at > ?5 LIMIT 1')
+          .bind(msgHash, visitor, wide ? 1 : 0, ipHash, day).first();
+        if (dup || rows.some(r => r.msgHash === msgHash && (r.visitor === visitor || wide))) { dropped.push({ id, reason: 'duplicate' }); continue; }
       }
-      rows.push({ ...v.row, id, msgHash });
+      rows.push({ ...v.row, id, visitor, msgHash });
       accepted.push(id);
     }
     if (rows.length) {
       await env.DB.batch(rows.map(r => env.DB.prepare(
-        `INSERT OR IGNORE INTO feedback (id, received_at, created_at, device, ip_hash, kind, rating, topics, message, screen, route, target, role, company_size, contact, demo_role, msg_hash)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`)
-        .bind(r.id, iso, r.created_at, device, ipHash, r.kind, r.rating, r.topics, r.message, r.screen, r.route, r.target, r.role, r.company_size, r.contact, r.demo_role, r.msgHash)));
+        `INSERT OR IGNORE INTO feedback (id, received_at, created_at, device, visitor, ip_hash, kind, rating, topics, message, screen, route, target, role, company_size, contact, demo_role, msg_hash)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)`)
+        .bind(r.id, iso, r.created_at, device, r.visitor, ipHash, r.kind, r.rating, r.topics, r.message, r.screen, r.route, r.target, r.role, r.company_size, r.contact, r.demo_role, r.msgHash)));
     }
     return json(200, { ok: true, accepted, dropped });
   },

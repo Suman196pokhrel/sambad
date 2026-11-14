@@ -1983,6 +1983,8 @@ A.demoJump = el => {
 // Clears the demo for the next visitor at an event. Feedback lives under its own key, so it survives.
 A.nextVisitor = A.demoReset = async () => {
   if (!await confirmBox({ title: 'Start fresh for the next person?', body: 'Signs out and clears every question, setting and account made in this demo. Feedback collected on this device is kept.', ok: 'Start fresh' })) return;
+  FB.visitor = newId();
+  fbSave();
   try { localStorage.removeItem(KEY); } catch { /* nothing stored */ }
   location.hash = '';
   location.reload();
@@ -1992,7 +1994,8 @@ A.nextVisitor = A.demoReset = async () => {
 const BUILD = '0.3, November 2026';
 const FBC = window.SAMBAD_FEEDBACK || {};
 const FB_KEY = 'sambad-feedback-v1';
-const FB_LIMITS = { cooldownMs: 10000, perDay: 60, keep: 500, message: 2000, minFillMs: 1200 };
+// Limits are per visitor: one event laptop serves many people, and "Start fresh" gives each a new visitor id.
+const FB_LIMITS = { cooldownMs: 10000, perVisitorDay: 40, keepDelivered: 300, message: 2000, minFillMs: 1200 };
 const TOPICS = [['confusing', 'Something is confusing'], ['missing', 'Something is missing'], ['idea', 'Idea'], ['bug', 'Bug'], ['pricing', 'Pricing'], ['like', 'I like this']];
 const ROLES = ['Employee', 'IT or security', 'Knowledge or operations', 'Leadership', 'Developer', 'Other'];
 const SIZES = ['1 to 50', '51 to 500', '501 to 5,000', 'Over 5,000'];
@@ -2000,6 +2003,8 @@ const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().
 let FB;
 try { FB = JSON.parse(localStorage.getItem(FB_KEY)); } catch { FB = null; }
 if (!FB || !Array.isArray(FB.entries) || typeof FB.device !== 'string') FB = { device: newId(), entries: [] };
+FB.visitor ||= newId();
+const mine = () => FB.entries.filter(e => e.visitor === FB.visitor);
 const fbSave = () => { try { localStorage.setItem(FB_KEY, JSON.stringify(FB)); } catch { /* private mode: kept for this tab only */ } };
 const norm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const SCREENS = { login: 'Sign in', sso: 'Single sign-on', signup: 'Create a workspace', forgot: 'Forgot password', verify: 'Email code', reset: 'New password', invite: 'Accept an invite' };
@@ -2012,12 +2017,14 @@ function screenName() {
 
 // Every entry gets the same context, is saved on the device first, then queued for sending.
 function fbAdd(fields) {
-  const today = FB.entries.filter(e => Date.now() - Date.parse(e.created_at) < 864e5).length;
-  if (today >= FB_LIMITS.perDay) { toast("That's the feedback limit for this device today. Thank you for so much of it.", null, 'info'); return null; }
-  const e = { id: newId(), created_at: new Date().toISOString(), screen: screenName(), route: location.hash.slice(0, 200) || '#/',
+  const today = mine().filter(e => Date.now() - Date.parse(e.created_at) < 864e5).length;
+  if (today >= FB_LIMITS.perVisitorDay) { toast("That's as much feedback as one person can send in a day. Thank you for all of it.", null, 'info'); return null; }
+  const e = { id: newId(), visitor: FB.visitor, created_at: new Date().toISOString(), screen: screenName(), route: location.hash.slice(0, 200) || '#/',
     demo_role: S.session?.role || 'signed out', status: FBC.endpoint ? 'queued' : 'local', ...fields };
   FB.entries.push(e);
-  if (FB.entries.length > FB_LIMITS.keep) FB.entries = FB.entries.slice(-FB_LIMITS.keep);
+  // Only trim entries the team already has. Unsent and unexported feedback is never dropped.
+  const delivered = FB.entries.filter(x => x.status === 'sent' || x.status === 'rejected');
+  if (delivered.length > FB_LIMITS.keepDelivered) { const old = new Set(delivered.slice(0, delivered.length - FB_LIMITS.keepDelivered)); FB.entries = FB.entries.filter(x => !old.has(x)); }
   fbSave();
   setTimeout(flush, 300);
   return e;
@@ -2115,9 +2122,9 @@ A.fbSend = async el => {
   if ($('#fbHp')?.value) { fbs = blankFb({ open: true, view: 'done' }); return paintFb(); }
   if (!msg && !fbs.rating && !fbs.topics.length) return err('Pick a score or a topic, or write a note.');
   if (contact && !isEmail(contact)) return err("That email looks incomplete. Leave it empty if you don't want a reply.");
-  const last = FB.entries.filter(e => e.kind === 'feedback').at(-1);
+  const last = mine().filter(e => e.kind === 'feedback').at(-1);
   if (last && Date.now() - Date.parse(last.created_at) < FB_LIMITS.cooldownMs) return err('Give it a few seconds before sending more.');
-  if (msg && FB.entries.some(e => e.kind === 'feedback' && norm(e.message) === norm(msg))) return err("That exact note has already been sent from this device.");
+  if (msg && mine().some(e => e.kind === 'feedback' && norm(e.message) === norm(msg))) return err("You've already sent that exact note.");
   await busy(el, 450);
   const elapsed = Date.now() - fbs.openedAt;
   if (elapsed < FB_LIMITS.minFillMs) return err('That was quick. Take a second, then send again.');
@@ -2185,7 +2192,7 @@ A.pointCancel = () => { endPoint(); openFb(); };
 
 /* sending: batches of up to 10, with a Turnstile token, retried until the Worker answers */
 let flushing = false, nextTry = 0, tsWidget = null, tsWait = null;
-const WIRE = ['id', 'kind', 'rating', 'topics', 'message', 'screen', 'route', 'target', 'role', 'company_size', 'contact', 'demo_role', 'created_at', 'elapsed_ms'];
+const WIRE = ['id', 'visitor', 'kind', 'rating', 'topics', 'message', 'screen', 'route', 'target', 'role', 'company_size', 'contact', 'demo_role', 'created_at', 'elapsed_ms'];
 const wire = e => Object.fromEntries(WIRE.filter(k => e[k] != null && e[k] !== '').map(k => [k, e[k]]));
 function loadTurnstile() {
   if (window.turnstile) return Promise.resolve();

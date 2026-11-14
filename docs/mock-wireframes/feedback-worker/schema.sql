@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS feedback (
   id           TEXT PRIMARY KEY,  -- made by the page, so a retried send never duplicates
   received_at  TEXT NOT NULL,     -- ISO time the Worker accepted it
   created_at   TEXT,              -- ISO time the visitor wrote it (may be earlier if sent offline)
-  device       TEXT NOT NULL,     -- random id kept in the visitor's browser
+  device       TEXT NOT NULL,     -- random id kept in the browser, shared by everyone on an event laptop
+  visitor      TEXT NOT NULL,     -- random id per person, renewed by "Start fresh for the next person"
   ip_hash      TEXT NOT NULL,
   kind         TEXT NOT NULL,     -- feedback, vote, question, price
   rating       INTEGER,           -- 1 to 5, "how useful would this be at your work"
@@ -24,5 +25,5 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 CREATE INDEX IF NOT EXISTS idx_feedback_ip  ON feedback (ip_hash, received_at);
-CREATE INDEX IF NOT EXISTS idx_feedback_dev ON feedback (device, received_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_vis ON feedback (visitor, received_at);
 CREATE INDEX IF NOT EXISTS idx_feedback_msg ON feedback (msg_hash, received_at);

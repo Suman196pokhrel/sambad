@@ -6,9 +6,10 @@ Cloudflare account. Nobody else can read it.
 
 ## How feedback moves
 
-1. A visitor uses **Feedback** in the mock. The entry is saved on their
-   device first (`localStorage`, key `sambad-feedback-v1`), so nothing is
-   lost if the venue Wi-Fi drops.
+1. A visitor uses **Give feedback** in the mock. The entry is saved on
+   their device first (`localStorage`, key `sambad-feedback-v1`), so
+   nothing is lost if the venue Wi-Fi drops. Entries the team hasn't
+   received are never trimmed.
 2. When the page is online and an endpoint is configured, it sends queued
    entries in batches of up to 10, with a Turnstile token proving a person
    is at the page.
@@ -23,15 +24,25 @@ Cloudflare account. Nobody else can read it.
 | Layer | Where | What it stops |
 |---|---|---|
 | Hidden trap field, minimum time to fill | Page and Worker | Form-filling bots |
-| Length limits, one entry per message | Page and Worker | Copy-paste floods |
-| 10 second cooldown, 60 entries per device per day | Page | A visitor mashing Send |
+| Length limits | Page and Worker | Oversized pastes |
+| The same note twice from one visitor is dropped. Long notes are also dropped when repeated from one IP. | Page and Worker | Copy-paste floods |
+| 10 second cooldown, 40 entries per visitor per day | Page and Worker | A visitor mashing Send |
 | Cloudflare Turnstile token, verified server side | Worker | Scripts posting directly to the endpoint |
-| 40 entries per IP per 10 minutes, 400 per IP per day, 80 per device per day | Worker | Anyone who gets past Turnstile |
+| 60 entries per IP per 10 minutes, 600 per IP per day | Worker | Anyone who gets past Turnstile |
 | Origin allowlist | Worker | Other websites posting from a visitor's browser |
 
 Page-side checks are for honest visitors. Only the Worker's checks are
-trusted. Venue Wi-Fi puts everyone behind one IP, which is why the IP
-limits are generous.
+trusted.
+
+**One laptop, many visitors.** At an event, everyone shares one browser
+and one IP. "Start fresh for the next person" gives each person a new
+visitor id, so per-person limits and duplicate checks don't block the
+next visitor. That's also why the IP limits are generous, and why two
+people can both send "Love it".
+
+**Price picks.** A visitor who changes their pick creates a new row. To
+count each visitor's final pick only:
+`SELECT message, COUNT(*) FROM (SELECT visitor, message, MAX(received_at) FROM feedback WHERE kind = 'price' GROUP BY visitor) GROUP BY message`
 
 Raw IP addresses are never stored, only a salted SHA-256 hash.
 
@@ -84,8 +95,11 @@ node test.mjs
 ```
 
 This runs the real handler against an in-memory SQLite database and
-checks the origin, Turnstile, validation, bot-trap, duplicate,
-rate-limit and read-back rules.
+checks the origin, Turnstile, validation, bot-trap, duplicate, visitor,
+rate-limit and read-back rules. It was also run end to end: the mock
+served over HTTP, this Worker under Node, and Cloudflare's public
+Turnstile test keys. A real D1 database and real site keys have not been
+tested yet; the first deploy is that test.
 
 ## Things to know
 
