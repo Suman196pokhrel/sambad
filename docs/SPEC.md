@@ -658,6 +658,13 @@ to send the question to the team.
 `sambad-mock-v2` and the feedback under `sambad-feedback-v1`. State
 saved by an older version is merged over new defaults.
 
+**Contextual help.** Technical controls and admin navigation have short,
+plain-language explanations on hover and keyboard focus. Small information
+buttons beside unfamiliar headings and settings also open help on tap.
+Tooltips appear after 100ms on hover, stay within the viewport, and dismiss
+with Escape, outside interaction, scrolling or navigation. They use the
+existing Quiet Ink palette and respect reduced motion.
+
 ### 8.5 Demo framing (required)
 
 The demo MUST always make clear that it is a demo:

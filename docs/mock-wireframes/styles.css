@@ -176,9 +176,16 @@ tr.click:hover td{background:#fbfbfc}
 .wrap-menu .menu{top:calc(100% + 6px);left:0;transform-origin:top left}
 
 /* floating tooltip and citation hover card */
-#tip{position:fixed;z-index:180;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;border-radius:9px;padding:7px 10px;box-shadow:var(--sh3);
-     opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;max-width:260px;line-height:1.4}
-#tip.on{opacity:1;transform:none}
+#tip{position:fixed;z-index:180;pointer-events:auto;background:var(--ink);color:#fff;font-size:12.5px;border-radius:9px;padding:7px 10px;box-shadow:var(--sh3);
+     opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;width:max-content;max-width:min(290px,calc(100vw - 16px));max-height:calc(100dvh - 16px);overflow:auto;overflow-wrap:anywhere;line-height:1.5;visibility:hidden}
+#tip.on{opacity:1;transform:none;visibility:visible}
+.help-label{display:flex;align-items:center;gap:3px}
+.help-label b{min-width:0}
+.help-label .help-tip{flex-shrink:0}
+.help-tip{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:24px;height:24px;margin-left:3px;padding:3px;border:0;border-radius:6px;background:transparent;color:var(--mid);cursor:help}
+.help-tip:hover,.help-tip:focus-visible{background:var(--b50);color:var(--brand)}
+.help-tip .svg{width:15px;height:15px}
+.field:has(>.help-tip)>label{display:inline-block}
 #tip b{font-weight:600}
 #tip .tl{display:flex;justify-content:space-between;gap:14px}
 #tip .tl i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
@@ -827,6 +834,7 @@ code.key{display:block;font:500 13px var(--mono);color:var(--ink);background:var
   .topics{grid-template-columns:1fr}
 }
 @media (max-width:760px){
+  .help-tip{width:44px;height:44px;margin:0;vertical-align:middle}
   .source-panel{padding:16px}
   .source-wizard .chip,.source-frequency .seg button{min-height:44px;height:auto}
   .source-wizard .autos button{min-height:44px}

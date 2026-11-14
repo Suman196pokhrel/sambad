@@ -110,17 +110,72 @@ function confirmBox({ title, body, ok = 'Continue', danger = false }) {
     o.querySelector('[data-x="1"]').focus();
   });
 }
+// One shared tooltip stays outside scrolling panels so explanations are never clipped.
 const tip = document.createElement('div');
 tip.id = 'tip';
+tip.setAttribute('role', 'tooltip');
+tip.setAttribute('aria-hidden', 'true');
 document.body.append(tip);
-function showTip(html, x, y) {
+let tipOwner = null, tipTimer, tipCloseTimer;
+const help = key => D.help.concepts[key] ? `<button type="button" class="help-tip" data-act="help" data-tip="${esc(D.help.concepts[key])}" data-plain="1" aria-label="About ${esc(key.replace(/&amp;/g, '&'))}">${ic('info')}</button>` : '';
+function hideTip() {
+  clearTimeout(tipTimer); clearTimeout(tipCloseTimer);
+  tip.classList.remove('on'); tip.setAttribute('aria-hidden', 'true');
+  if (tipOwner) {
+    const ids = (tipOwner.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && id !== 'tip');
+    if (ids.length) tipOwner.setAttribute('aria-describedby', ids.join(' '));
+    else tipOwner.removeAttribute('aria-describedby');
+  }
+  tipOwner = null;
+}
+function showTip(html, x, y, owner = null) {
+  hideTip();
   tip.innerHTML = html;
-  tip.classList.add('on');
+  tip.classList.add('on'); tip.setAttribute('aria-hidden', 'false');
+  tipOwner = owner;
+  if (owner) owner.setAttribute('aria-describedby', [owner.getAttribute('aria-describedby'), 'tip'].filter(Boolean).join(' '));
   const w = tip.offsetWidth, h = tip.offsetHeight;
   tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + 'px';
-  tip.style.top = (y - h - 10 < 8 ? y + 18 : y - h - 10) + 'px';
+  const below = owner ? owner.getBoundingClientRect().bottom + 8 : y + 18;
+  tip.style.top = Math.max(8, Math.min(innerHeight - h - 8, y - h - 10 < 8 ? below : y - h - 10)) + 'px';
 }
-const hideTip = () => tip.classList.remove('on');
+function helpText(el) {
+  if (el.dataset.tip) return el.dataset.plain ? esc(el.dataset.tip) : el.dataset.tip;
+  const action = el.dataset.act;
+  if (action === 'mode') return esc(D.help.concepts[el.dataset.m === 'hosted' ? 'Hosted endpoint' : 'Answering model']);
+  if (action === 'setToggle' || action === 'setSeg') {
+    const key = el.dataset.k || el.parentElement.dataset.k;
+    return esc(D.help.settings[key] || '');
+  }
+  if (el.matches('a.nitem')) {
+    const title = el.textContent.replace(/\d+$/, '').trim();
+    return esc(D.help.concepts[title === 'People & groups' ? 'People &amp; groups' : title] || '');
+  }
+  if (el.matches('input[type=range]')) return esc(D.help.concepts['When to say "I don\'t know"']);
+  return esc(D.help.actions[action] || '');
+}
+const tipTarget = target => target.closest?.('[data-tip],[data-act],a.nitem,input[type=range]');
+function revealHelp(el, immediate = false) {
+  const text = helpText(el);
+  if (!text || el.disabled) return;
+  clearTimeout(tipTimer); clearTimeout(tipCloseTimer);
+  const show = () => {
+    if (!el.isConnected) return;
+    // A repaint under the mouse must not replace help opened with the keyboard.
+    if (!immediate && tipOwner === document.activeElement && tipOwner !== el && tipOwner.matches(':focus-visible')) return;
+    const r = el.getBoundingClientRect();
+    showTip(text, r.left + r.width / 2, r.top, el);
+  };
+  if (immediate) show(); else tipTimer = setTimeout(show, 100);
+}
+const deferHideTip = () => { clearTimeout(tipTimer); clearTimeout(tipCloseTimer); tipCloseTimer = setTimeout(hideTip, 140); };
+tip.addEventListener('mouseenter', () => { clearTimeout(tipCloseTimer); });
+tip.addEventListener('mouseleave', deferHideTip);
+document.addEventListener('focusin', e => { const el = tipTarget(e.target); if (el) revealHelp(el, true); });
+document.addEventListener('focusout', e => { if (!tip.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('scroll', e => { if (e.target !== tip) hideTip(); }, true);
+addEventListener('resize', hideTip);
+document.addEventListener('pointerdown', e => { if (!tip.contains(e.target) && !e.target.closest('.help-tip')) hideTip(); });
 async function busy(btn, ms) { btn?.classList.add('loading'); await sleep(ms); btn?.classList.remove('loading'); }
 // Types into a field one character at a time, so autofill looks like a person typing.
 function typeInto(el, text, speed = 14) {
@@ -217,6 +272,7 @@ document.addEventListener('keydown', e => {
     return paintDrawer();
   }
   if (e.key !== 'Escape') return;
+  if (tip.classList.contains('on')) { hideTip(); e.preventDefault(); return; }
   $$('.menu').forEach(m => m.remove());
   if (pointing) return A.pointCancel();
   if ($('.intro')) return A.introClose();
@@ -231,15 +287,16 @@ document.addEventListener('mouseover', e => {
   if (c) return citeEnter(c);
   const tl = e.target.closest('.tile[data-turn]');
   if (tl && tl.dataset.n) linkHighlight(tl.dataset.turn, tl.dataset.n);
-  const t = e.target.closest('[data-tip]');
-  if (t) { const r = t.getBoundingClientRect(); showTip(t.dataset.tip, r.left + r.width / 2, r.top); }
+  const t = tipTarget(e.target);
+  if (t && !t.contains(e.relatedTarget)) revealHelp(t);
 });
 document.addEventListener('mouseout', e => {
   const c = e.target.closest('.cite,.tile[data-turn]');
   if (c && !c.contains(e.relatedTarget)) { linkHighlight(); clearTimeout(hcTimer); hcTimer = setTimeout(hideHC, 80); }
-  const t = e.target.closest('[data-tip]');
-  if (t && !t.contains(e.relatedTarget)) hideTip();
+  const t = tipTarget(e.target);
+  if (t && !t.contains(e.relatedTarget)) deferHideTip();
 });
+A.help = el => revealHelp(el, true);
 A.goto = el => go(el.dataset.to);
 A.nav = () => $('#shell')?.classList.toggle('navopen');
 A.eye = el => { const i = el.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; el.textContent = i.type === 'password' ? 'Show' : 'Hide'; };
@@ -252,7 +309,7 @@ function authWrap(title, sub, card, foot = '') {
 }
 function fld(label, name, { type = 'text', ph = '', value = '', ac = 'off', right = '', attrs = '' } = {}) {
   const input = `<input class="in" id="f-${name}" name="${name}" type="${type}" placeholder="${ph}" value="${esc(value)}" autocomplete="${ac}" ${attrs}>`;
-  return `<div class="field"><div class="flabel"><label for="f-${name}">${label}</label>${right}</div>
+  return `<div class="field"><div class="flabel"><label for="f-${name}">${label}</label>${help(label)}${right}</div>
     ${type === 'password' ? `<div class="pw">${input}<button type="button" class="eye" data-act="eye">Show</button></div>` : input}</div>`;
 }
 const meter = () => `<div class="meter" id="meter"><i></i><i></i><i></i><i></i></div>
@@ -825,8 +882,8 @@ function bodyHTML(t, u, i, animate = false) {
     if (stale.length) h += `<div class="stale-line">${ic('clock')}<span>${esc(stale[0].title)} hasn't been updated in ${Math.round(stale[0].age / 30.4)} months. Worth double-checking.</span></div>`;
     h += coverHTML(sc, u);
     h += `<div class="tools"><button class="btn ghost sm" data-act="copy" data-turn="${u.id}">${ic('copy')} Copy</button>
-      <button class="btn ghost sm icon ${u.fb === 'up' ? 'on' : ''}" data-act="up" data-turn="${u.id}" data-tip="Helpful" aria-label="Helpful">${ic('thumbUp')}</button>
-      <button class="btn ghost sm icon ${u.fb && u.fb !== 'up' ? 'on' : ''}" data-act="down" data-turn="${u.id}" data-tip="Not helpful" aria-label="Not helpful">${ic('thumbDown')}</button>
+      <button class="btn ghost sm icon ${u.fb === 'up' ? 'on' : ''}" data-act="up" data-turn="${u.id}" data-tip="${esc(D.help.actions.up)}" data-plain="1" aria-label="Helpful">${ic('thumbUp')}</button>
+      <button class="btn ghost sm icon ${u.fb && u.fb !== 'up' ? 'on' : ''}" data-act="down" data-turn="${u.id}" data-tip="${esc(D.help.actions.down)}" data-plain="1" aria-label="Not helpful">${ic('thumbDown')}</button>
       <span class="grow"></span><button class="btn ghost sm" data-act="cite" data-n="1" data-turn="${u.id}">${ic('book')} Read the sources</button></div>`;
     h += fbHTML(u);
     const done = sc.followUp && t.turns.some(x => x.q === sc.followUp);
@@ -1059,6 +1116,7 @@ function paintAdmin(skel) {
   const borrowed = page.needsData && S.workspace !== D.workspace
     ? `<div class="demo-note" style="margin-bottom:18px">${ic('info')}<div><b>Demo note: these are Acme's sample numbers.</b>In a real workspace this page fills in from ${esc(S.workspace)}'s own documents and questions.</div></div>` : '';
   const fill = () => {
+    hideTip();
     const keepScroll = body.scrollTop;
     body.innerHTML = `<div class="page">${borrowed}${page.body()}</div>`;
     if (!skel) body.scrollTop = keepScroll;
@@ -1079,8 +1137,8 @@ function updateBadges() {
     if (b.textContent !== v) { b.textContent = v; b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); }
   });
 }
-const phead = (title, sub, right = '') => `<div class="phead"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right ? `<div class="row" style="flex-wrap:wrap">${right}</div>` : ''}</div>`;
-const secH = (title, sub = '', right = '') => `<div class="sec-h"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div>${right}</div>`;
+const phead = (title, sub, right = '') => `<div class="phead"><div><h1>${title} ${help(title)}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right ? `<div class="row" style="flex-wrap:wrap">${right}</div>` : ''}</div>`;
+const secH = (title, sub = '', right = '') => `<div class="sec-h"><div><h2>${title} ${help(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div>${right}</div>`;
 const statusBadge = s => ({ healthy: '<span class="badge ok"><span class="dot"></span>Healthy</span>', failing: '<span class="badge bad"><span class="dot"></span>Failing</span>',
   indexing: '<span class="badge brand live"><span class="dot"></span>Indexing</span>', syncing: '<span class="badge brand live"><span class="dot"></span>Catching up</span>' }[s]);
 const connSub = c => c.status === 'failing' ? `${fmt(c.docs)} documents. Last successful sync ${c.synced}.`
@@ -1249,7 +1307,7 @@ const ADMIN = {
       return `${phead('Overview', '', seg('range', [['24h', '24 hours'], ['7d', '7 days'], ['30d', '30 days']], S.range))}
         <p class="headline" style="margin:-10px 0 24px">${headline}</p>
         <div class="metrics">
-          <div class="metric click" data-act="goto" data-to="#/admin/connectors"><div class="k">Documents indexed</div><div class="v num" data-count="${docs}">0</div><div class="d">across ${S.connectors.length} sources</div>${spark([1201, 1220, 1238, 1250, 1262, 1270, docs])}</div>
+          <div class="metric click" data-act="goto" data-to="#/admin/connectors"><div class="k">Documents indexed ${help('Documents indexed')}</div><div class="v num" data-count="${docs}">0</div><div class="d">across ${S.connectors.length} sources</div>${spark([1201, 1220, 1238, 1250, 1262, 1270, docs])}</div>
           <div class="metric"><div class="k">Questions asked</div><div class="v num" data-count="${asked}">0</div><div class="d up">${D.kpis[S.range].delta}</div>${spark(tot)}</div>
           <div class="metric"><div class="k">Answered</div><div class="v num" data-count="${ans}" data-suf="%">0</div><div class="d">${100 - ans}% said "not covered"</div>${spark(s.answered.map((v, i) => tot[i] ? v / tot[i] : 1))}</div>
           <div class="metric click" data-act="goto" data-to="#/admin/freshness"><div class="k">Stale but cited</div><div class="v num" data-count="${sc}">0</div><div class="d down">documents over a year old</div>${spark([24, 23, 22, 21, 20, 19, sc], '#8a6d1f')}</div>
@@ -1303,11 +1361,11 @@ const ADMIN = {
       return `${phead(esc(d.title), `${d.src}, ${d.space}`, `<button class="btn" data-act="openSrc" data-src="${d.src}">Open in ${d.src} ${ic('ext')}</button><button class="btn pri" data-act="reindexDoc">${ic('refresh')} Re-index</button>`)}
         <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
           <div class="metric"><div class="k">Last changed</div><div class="v">${d.changed.replace(' mo', ' months')}</div><div class="d ${ok || !staleDoc ? '' : 'down'}">${ok ? 'Checked by you today' : staleDoc ? 'Flagged stale' : 'Current'}</div></div>
-          <div class="metric"><div class="k">Cited this week</div><div class="v num">${d.cited}</div><div class="d">times in answers</div></div>
+          <div class="metric"><div class="k">Cited this week ${help('Cited this week')}</div><div class="v num">${d.cited}</div><div class="d">times in answers</div></div>
           <div class="metric"><div class="k">Pieces Sambad searches</div><div class="v num">${d.chunks}</div><div class="d">${d.restricted ? `${d.restricted} restricted` : 'none restricted'}</div></div></div>
         ${ok || !staleDoc ? '' : `<div class="note warn sec">${ic('clock')}<div class="grow"><b>Nobody has changed this in ${d.changed.replace(' mo', ' months')}.</b>It was cited ${d.cited} times this week. If it's still right, mark it checked and Sambad stops warning people about it for 6 months.
           <div class="acts"><button class="btn pri sm" data-act="markReviewed">Mark as still accurate</button><button class="btn sm" data-act="nudgeOwner">Ask the owner to update it</button></div></div></div>`}
-        <div class="sec panel">${secH('Chunk map', 'Every piece of this document that search can return. Darker means cited more, hatched means restricted.',
+        <div class="sec panel">${secH('Pieces of this document', 'Every piece of this document that search can return. Darker means cited more, hatched means restricted.',
           '<div class="legend"><span><i style="background:#6aa797"></i>Everyone</span><span><i style="background:var(--hatch-bad)"></i>Restricted</span></div>')}
           <div class="chunks">${ch.map((c, i) => `<button class="chunk ${c.r ? 'r' : ''} ${c.n === tmp.chunk ? 'sel' : ''}" data-act="pickChunk" data-n="${c.n}" style="background:rgba(18,86,74,${0.1 + c.cites / maxC * 0.55});animation-delay:${i * 0.015}s"
             data-tip="Piece ${c.n}${c.r ? ', restricted' : ''}<br>Cited ${c.cites} times"><span>${c.n}</span></button>`).join('')}</div>
@@ -1328,7 +1386,7 @@ const ADMIN = {
       return `${phead(`${r.source} sync`, `Started 2 days ago. ${f ? `Finished with ${f} error${f === 1 ? '' : 's'}.` : 'Everything synced.'}`,
           `<button class="btn pri" data-act="retryAll" ${r.failures.some(x => x.retry === 'ok') ? '' : 'disabled'}>${ic('refresh')} Retry failed</button>`)}
         <div class="panel">${secH('What happened to each document', `${total} checked`)}
-          <div class="flow"><div style="width:${pct(r.unchanged)}%" data-tip="Same content hash as last time, so skipped">${r.unchanged} unchanged</div>
+          <div class="flow"><div style="width:${pct(r.unchanged)}%" data-tip="The document has not changed since the last check, so it did not need to be read again">${r.unchanged} unchanged</div>
             <div class="re" style="width:${Math.max(pct(r.reindexed), 4)}%;animation-delay:.1s" data-tip="Changed since last run">${r.reindexed}</div>
             ${r.skipped ? `<div style="width:${Math.max(pct(r.skipped), 2)}%;background:var(--fill2);color:var(--mid);animation-delay:.15s" data-tip="Skipped by you">${r.skipped}</div>` : ''}
             ${f ? `<div class="fail" style="width:${Math.max(pct(f), 4)}%;animation-delay:.2s" data-tip="Didn't make it into the index">${f}</div>` : ''}</div>
@@ -1428,7 +1486,7 @@ const ADMIN = {
         ${c.status === 'failing' ? `<div class="note bad" style="margin-top:14px">${ic('alert')}<div class="grow"><b>Sambad can't reach ${c.name}.</b>The access token was revoked or has expired. Reconnecting resumes syncing from where it stopped.
           <div class="acts"><button class="btn pri sm" data-act="reconnect" data-id="${c.id}">Reconnect</button><a class="btn sm" href="#/admin/runs/${S.run.id}">See the last run</a></div></div></div>` : ''}
         ${c.status === 'indexing' || c.status === 'syncing' ? `<div class="progress"><i id="prog-${c.id}" style="width:${(c.progress || 0) / c.total * 100}%"></i></div><div class="small muted" style="margin-top:6px" id="ptxt-${c.id}">Starting…</div>` : ''}
-        ${tmp.settings === c.id ? `<div class="sep"></div><div class="grid2"><div><div class="label">How often to check for changes</div>
+        ${tmp.settings === c.id ? `<div class="sep"></div><div class="grid2"><div><div class="label">How often to check for changes ${help('How often to check for changes')}</div>
             ${seg('connFreq', [['Every 15 minutes', '15 min'], ['Every hour', 'Hourly'], ['Every 6 hours', '6 hours'], ['Once a day', 'Daily']], tmp.freq || c.freq)}</div>
           <div><div class="label">Syncing</div><div class="row" style="height:34px"><button class="switch ${c.paused ? '' : 'on'}" data-act="switch" id="sw-${c.id}" aria-label="Syncing on"></button><span class="small mid">${c.paused ? 'Paused' : 'On'}</span></div></div></div>
           <div class="acts"><button class="btn pri sm" data-act="connSave" data-id="${c.id}">Save</button><button class="btn sm" data-act="syncNow" data-id="${c.id}">${ic('refresh')} Sync now</button>
@@ -1461,9 +1519,9 @@ const ADMIN = {
             : `<p class="mid">Sambad reads documents and their permissions. It never writes anything back.</p><button class="btn pri" data-act="srcConnect" data-t="${t}">Sign in to ${t}</button>`;
         } else if (tmp.step === 2) {
           content = up ? `<div class="note">${ic('info')}<div>Uploaded files have no permissions of their own, so everyone in the workspace can get answers from them.</div></div>`
-            : `<div class="label">Spaces</div><div class="spaces">${spaces.map(sp => `<button class="chip ${picked.includes(sp) ? 'on' : ''}" data-act="spaceToggle" data-t="${t}" data-s="${esc(sp)}" aria-pressed="${picked.includes(sp)}">${picked.includes(sp) ? ic('check') : ''}${esc(sp)}</button>`).join('')}</div>
+            : `<div class="label">Spaces ${help('Spaces')}</div><div class="spaces">${spaces.map(sp => `<button class="chip ${picked.includes(sp) ? 'on' : ''}" data-act="spaceToggle" data-t="${t}" data-s="${esc(sp)}" aria-pressed="${picked.includes(sp)}">${picked.includes(sp) ? ic('check') : ''}${esc(sp)}</button>`).join('')}</div>
               ${!picked.length ? '<p class="small bad">Choose at least one space to continue.</p>' : ''}
-              <div class="label" style="margin-top:20px">How often to check for changes</div><div class="source-frequency">${seg('srcFreq', [['Every 15 minutes', '15 min'], ['Every hour', 'Hourly'], ['Every 6 hours', '6 hours'], ['Once a day', 'Daily']], d.freq, `data-t="${t}"`)}</div>`;
+              <div class="label" style="margin-top:20px">How often to check for changes ${help('How often to check for changes')}</div><div class="source-frequency">${seg('srcFreq', [['Every 15 minutes', '15 min'], ['Every hour', 'Hourly'], ['Every 6 hours', '6 hours'], ['Once a day', 'Daily']], d.freq, `data-t="${t}"`)}</div>`;
         } else {
           content = `<div class="review">${up ? `<div><span>Files</span><b>${d.files.length}</b></div>` : `<div><span>Signed in as</span><b>${esc(S.session.email)}</b></div><div><span>Spaces</span><b>${picked.length === spaces.length ? 'All of them' : esc(picked.join(', '))}</b></div><div><span>Checks for changes</span><b>${d.freq}</b></div>`}</div>
             <div class="note brand" style="margin-top:16px">${ic('shield')}<div><b>${up ? 'Sambad keeps the only copy, on your own server.' : 'Permissions come across too.'}</b>${up ? 'Everyone in this workspace can get answers from these files. Use a connected source for anything that needs restricted access.' : `Everyone sees only what they can already open in ${t}. Sambad never widens access, and if someone loses access there, they lose it here at the next sync.`}</div></div>`;
@@ -1514,8 +1572,8 @@ const ADMIN = {
         <div class="grid2">
           <button class="opt ${m.mode === 'local' ? 'on' : ''}" data-act="mode" data-m="local"><span class="o"></span><span class="glyph lg">${ic('cpu')}</span><span><b>On this server</b><small>Ollama with ${m.answering}. Nothing leaves your infrastructure.</small></span></button>
           <button class="opt ${m.mode === 'hosted' ? 'on' : ''}" data-act="mode" data-m="hosted"><span class="o"></span><span class="glyph lg">${ic('plug')}</span><span><b>Hosted endpoint</b><small>Your own private endpoint and API key.</small></span></button></div>
-        ${m.mode === 'hosted' ? `<div class="panel sec" style="animation:rise .3s var(--ease)"><div class="grid2"><div class="field"><label>Endpoint URL</label><input class="in" id="mEndpoint" data-in="mField" data-k="endpoint" placeholder="https://llm.internal.example.com/v1" value="${esc(m.endpoint)}"></div>
-          <div class="field"><label>API key</label><input class="in" id="mKey" type="password" data-in="mField" data-k="key" placeholder="sk-…" value="${esc(m.key)}"></div></div>
+        ${m.mode === 'hosted' ? `<div class="panel sec" style="animation:rise .3s var(--ease)"><div class="grid2"><div class="field"><label for="mEndpoint">Endpoint URL</label>${help('Endpoint URL')}<input class="in" id="mEndpoint" data-in="mField" data-k="endpoint" placeholder="https://llm.internal.example.com/v1" value="${esc(m.endpoint)}"></div>
+          <div class="field"><label for="mKey">API key</label>${help('API key')}<input class="in" id="mKey" type="password" data-in="mField" data-k="key" placeholder="sk-…" value="${esc(m.key)}"></div></div>
           <div class="autos"><button class="auto" data-act="fillEndpoint">${SPARK} Sample endpoint</button></div>
           <div class="note warn" style="margin-top:14px">${ic('alert')}<div><b>Questions will leave this server.</b>Each question and the passages used to answer it are sent to this endpoint. Permission filtering still happens here first.</div></div></div>` : ''}
         <div class="grid2 sec">
@@ -1537,9 +1595,9 @@ const ADMIN = {
     init: () => { tmp.stab ??= 'access'; },
     body: () => {
       const st = S.settings, tab = tmp.stab;
-      const sw = (k, label, sub) => `<div class="setrow"><div class="grow"><b>${label}</b><small>${sub}</small></div>
+      const sw = (k, label, sub) => `<div class="setrow"><div class="grow"><div class="help-label"><b>${label}</b>${help(label)}</div><small>${sub}</small></div>
         <button class="switch ${st[k] ? 'on' : ''}" data-act="setToggle" data-k="${k}" role="switch" aria-checked="${!!st[k]}" aria-label="${esc(label)}"></button></div>`;
-      const choice = (k, label, sub, opts) => `<div class="setrow wrap"><div class="grow"><b>${label}</b><small>${sub}</small></div>${seg('setSeg', opts.map(o => [o, o]), st[k], `data-k="${k}"`)}</div>`;
+      const choice = (k, label, sub, opts) => `<div class="setrow wrap"><div class="grow"><div class="help-label"><b>${label}</b>${help(label)}</div><small>${sub}</small></div>${seg('setSeg', opts.map(o => [o, o]), st[k], `data-k="${k}"`)}</div>`;
       const views = {
         access: `<div class="panel">${secH('Single sign-on', 'People sign in with their company account')}
             <div class="setrow"><div class="conn grow">${glyph(st.idp, 'lg')}<div><b>${esc(st.idp)}, SAML 2.0</b><small>Connected. 312 people signed in this month.</small></div></div><button class="btn sm" data-act="testSso">Test sign-in</button></div>
