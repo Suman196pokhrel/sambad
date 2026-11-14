@@ -171,3 +171,9 @@ make test
 
 ---
 
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE). Free for personal use, research,
+and noncommercial organizations. Any commercial use, including selling
+Sambad or a modified version of it, needs a separate commercial license:
+reach out via [GitHub](https://github.com/Suman196pokhrel).
