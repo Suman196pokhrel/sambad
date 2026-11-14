@@ -1958,7 +1958,7 @@ function paintDemo() {
     <div class="autos"><button class="auto" data-act="demoJump" data-to="#/signup">Sign up</button><button class="auto" data-act="demoJump" data-to="#/verify">Code</button>
       <button class="auto" data-act="demoJump" data-to="#/forgot">Forgot</button><button class="auto" data-act="demoJump" data-to="#/invite">Invite</button></div>
     <div class="sep" style="margin:12px 0 10px"></div>
-    <div class="row"><span>Feedback on this device<small class="muted" style="display:block">${n ? `${n} saved${FBC.endpoint ? `, ${waiting} waiting to send` : ''}` : 'Nothing yet'}</small></span><button class="btn sm" data-act="fbInbox">Review</button></div>
+    <div class="row"><span>Feedback on this device<small class="muted" style="display:block">${n ? `${n} saved${SENDS ? `, ${waiting} waiting to send` : ''}` : 'Nothing yet'}</small></span><button class="btn sm" data-act="fbInbox">Review</button></div>
     <div class="sep" style="margin:10px 0"></div>
     <div class="row"><button class="btn sm danger" data-act="nextVisitor">Start fresh for the next person</button></div>
     <p class="small muted" style="margin:6px 0 0">Keeps the feedback. Demo build ${BUILD}.</p></div>`;
@@ -1993,6 +1993,8 @@ A.nextVisitor = A.demoReset = async () => {
 /* ════════════════ DEMO FRAME AND FEEDBACK ════════════════ */
 const BUILD = '0.3, November 2026';
 const FBC = window.SAMBAD_FEEDBACK || {};
+// Opened from disk there's no website to send from (and Turnstile can't run), so feedback stays on the device.
+const SENDS = !!FBC.endpoint && location.protocol !== 'file:';
 const FB_KEY = 'sambad-feedback-v1';
 // Limits are per visitor: one event laptop serves many people, and "Start fresh" gives each a new visitor id.
 const FB_LIMITS = { cooldownMs: 10000, perVisitorDay: 40, keepDelivered: 300, message: 2000, minFillMs: 1200 };
@@ -2020,7 +2022,7 @@ function fbAdd(fields) {
   const today = mine().filter(e => Date.now() - Date.parse(e.created_at) < 864e5).length;
   if (today >= FB_LIMITS.perVisitorDay) { toast("That's as much feedback as one person can send in a day. Thank you for all of it.", null, 'info'); return null; }
   const e = { id: newId(), visitor: FB.visitor, created_at: new Date().toISOString(), screen: screenName(), route: location.hash.slice(0, 200) || '#/',
-    demo_role: S.session?.role || 'signed out', status: FBC.endpoint ? 'queued' : 'local', ...fields };
+    demo_role: S.session?.role || 'signed out', status: SENDS ? 'queued' : 'local', ...fields };
   FB.entries.push(e);
   // Only trim entries the team already has. Unsent and unexported feedback is never dropped.
   const delivered = FB.entries.filter(x => x.status === 'sent' || x.status === 'rejected');
@@ -2055,15 +2057,14 @@ A.introGo = el => { A.introClose(); signIn(D.users[el.dataset.u], `Signed in as 
 /* the feedback panel */
 const blankFb = keep => ({ open: false, view: 'form', rating: null, topics: [], message: '', target: '', more: false, role: '', size: '', contact: '', openedAt: Date.now(), ...keep });
 let fbs = blankFb();
-const fbWhere = () => FBC.endpoint ? 'Goes to the Sambad team. Please leave out anything confidential.' : 'Saved on this device for the Sambad team. Please leave out anything confidential.';
+const fbWhere = () => SENDS ? 'Goes to the Sambad team. Please leave out anything confidential.' : 'Saved on this device for the Sambad team. Please leave out anything confidential.';
 function paintFb() {
   const p = $('#fbp');
   if (!fbs.open) { p.innerHTML = ''; return; }
   if (fbs.view === 'done') {
-    const sending = FBC.endpoint && location.protocol !== 'file:';
     p.innerHTML = `<div class="fbp" role="dialog" aria-label="Feedback sent" data-menu><div class="fbp-h"><b>Feedback</b><button class="btn ghost sm icon" data-act="fbClose" aria-label="Close">${ic('x')}</button></div>
       <div class="fbp-b center"><div class="success-ico">${ic('check')}</div><h3 class="fbp-t">Thanks, that's saved.</h3>
-        <p class="mid small" style="margin:0 auto 18px;max-width:32ch">${sending ? (navigator.onLine ? 'It is on its way to the team.' : "You're offline, so it will be sent once there's a connection.") : 'It stays on this device until the team collects it.'}</p>
+        <p class="mid small" style="margin:0 auto 18px;max-width:32ch">${SENDS ? (navigator.onLine ? 'It is on its way to the team.' : "You're offline, so it will be sent once there's a connection.") : 'It stays on this device until the team collects it.'}</p>
         <div class="col-acts"><button class="btn" data-act="fbAgain">Add something else</button><button class="btn ghost" data-act="fbClose">Back to the demo</button></div>
         <div class="sep"></div><p class="small muted" style="margin:0 0 8px">Handing this device to someone else?</p><button class="btn sm" data-act="nextVisitor">Start fresh for the next person</button></div></div>`;
     return;
@@ -2220,7 +2221,7 @@ async function turnstileToken() {
   });
 }
 async function flush(force) {
-  if (!FBC.endpoint || location.protocol === 'file:' || flushing || !navigator.onLine || (force !== true && Date.now() < nextTry)) return;
+  if (!SENDS || flushing || !navigator.onLine || (force !== true && Date.now() < nextTry)) return;
   const batch = FB.entries.filter(e => e.status === 'queued').slice(0, 10);
   if (!batch.length) return;
   flushing = true;
@@ -2248,14 +2249,14 @@ A.fbInbox = () => {
   const topicName = t => TOPICS.find(x => x[0] === t)?.[1] || t;
   $('#overlay').innerHTML = `<div class="scrim" data-act="inboxClose"><div class="modal inbox" role="dialog" aria-modal="true" aria-labelledby="inboxT">
     <div class="row"><h3 id="inboxT" class="grow">Feedback on this device</h3><button class="btn ghost sm icon" data-act="inboxClose" aria-label="Close">${ic('x')}</button></div>
-    <p>${list.length ? `${list.length} entr${list.length === 1 ? 'y' : 'ies'}. ${FBC.endpoint ? `${c('sent')} sent, ${c('queued')} waiting to send.` : 'No endpoint is set in config.js, so everything stays here until you export it.'}` : 'Nothing collected yet.'}</p>
+    <p>${list.length ? `${list.length} entr${list.length === 1 ? 'y' : 'ies'}. ${SENDS ? `${c('sent')} sent, ${c('queued')} waiting to send.` : FBC.endpoint ? 'This copy of the demo was opened from disk, so nothing is sent. Export it to keep it.' : 'No endpoint is set in config.js, so everything stays here until you export it.'}` : 'Nothing collected yet.'}</p>
     <div class="ilist">${list.map(e => { const [cls, lbl] = STATUS[e.status] || STATUS.local; return `<div class="ient">
       <div class="row small"><b>${esc({ feedback: 'Feedback', vote: 'Feature vote', question: 'Question tried', price: 'Price pick' }[e.kind] || e.kind)}</b>${e.rating ? `<span class="badge brand">${e.rating} of 5</span>` : ''}
         <span class="muted grow">${new Date(e.created_at).toLocaleString()}</span><span class="badge ${cls}" ${e.reason ? `data-tip="${esc(e.reason)}"` : ''}>${lbl}</span></div>
       ${e.message ? `<p class="imsg">${esc(e.message)}</p>` : ''}
       <div class="small muted">${[e.target || e.screen, (e.topics || []).map(topicName).join(', '), e.role, e.company_size, e.contact].filter(Boolean).map(esc).join('<br>')}</div></div>`; }).join('')}</div>
     <div class="acts" style="flex-wrap:wrap"><button class="btn sm danger" data-act="fbClear" ${list.length ? '' : 'disabled'}>Delete all</button><span class="grow"></span>
-      ${FBC.endpoint && c('queued') ? `<button class="btn sm" data-act="fbSendNow">${ic('refresh')} Send now</button>` : ''}
+      ${SENDS && c('queued') ? `<button class="btn sm" data-act="fbSendNow">${ic('refresh')} Send now</button>` : ''}
       <button class="btn sm" data-act="fbExport" data-f="json" ${list.length ? '' : 'disabled'}>${ic('download')} JSON</button><button class="btn sm pri" data-act="fbExport" data-f="csv" ${list.length ? '' : 'disabled'}>${ic('download')} CSV</button></div></div></div>`;
 };
 A.inboxClose = (el, e) => { if (el.classList.contains('scrim') && e.target !== el) return; $('#overlay').innerHTML = ''; };

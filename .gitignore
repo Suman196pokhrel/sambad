@@ -135,3 +135,9 @@ postgres-data/
 CLAUDE.md
 .claude/
 
+
+# ==============================
+# Cloudflare (wrangler local state and dev secrets)
+# ==============================
+.wrangler/
+.dev.vars*

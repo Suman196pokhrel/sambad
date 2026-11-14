@@ -40,6 +40,9 @@ const again = item();
 await post([again]); await post([again]);
 assert.equal(count(), 2);
 
+// The Worker's own URL is always allowed, since it serves the demo page itself.
+assert.equal((await post([item()], { origin: 'https://w.example' })).status, 200);
+
 // Wrong origin, bad JSON, empty and oversized batches are refused.
 assert.equal((await post([item()], { origin: 'https://evil.example' })).status, 403);
 assert.equal((await worker.fetch(new Request('https://w.example/feedback', { method: 'POST', headers: { Origin: ORIGIN }, body: '{nope' }), env)).status, 400);

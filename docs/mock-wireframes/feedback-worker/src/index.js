@@ -1,7 +1,8 @@
 /*
- * Sambad demo feedback collector (Cloudflare Worker).
- * The clickable mock queues feedback in the visitor's browser and posts it
- * here in small batches. This Worker is the only place feedback is trusted:
+ * Sambad demo on Cloudflare: serves the clickable mock and collects its feedback.
+ * Cloudflare serves the mock's files directly (see [assets] in wrangler.toml);
+ * this code only runs for /feedback. The mock queues feedback in the
+ * visitor's browser and posts it here in small batches. This Worker is the only place feedback is trusted:
  * it checks the origin, verifies a Cloudflare Turnstile token (proof a human
  * is at the page), validates every field, rate limits per IP and per visitor,
  * drops duplicates, and stores rows in D1. One event laptop serves many
@@ -9,7 +10,8 @@
  * behind a bearer token that only the project owner has.
  *
  * Secrets (wrangler secret put): TURNSTILE_SECRET, ADMIN_TOKEN, IP_SALT.
- * Vars (wrangler.toml): ALLOWED_ORIGINS. ALLOW_NO_TURNSTILE="true" is for
+ * Vars (wrangler.toml): ALLOWED_ORIGINS, extra sites allowed to post here
+ * besides this Worker's own URL. ALLOW_NO_TURNSTILE="true" is for
  * local testing only and must never be set in production.
  */
 
@@ -24,7 +26,8 @@ export default {
     const url = new URL(req.url);
     const origin = req.headers.get('Origin') || '';
     const allowed = (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-    const okOrigin = allowed.includes(origin);
+    // The demo served by this Worker posts from its own URL, which is always allowed.
+    const okOrigin = origin === url.origin || allowed.includes(origin);
     const cors = okOrigin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } : {};
     const json = (status, data, extra = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors, ...extra } });
 

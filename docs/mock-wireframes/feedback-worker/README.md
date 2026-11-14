@@ -1,8 +1,16 @@
-# Demo feedback collector
+# Demo hosting and feedback collector
 
-The clickable mock sends visitor feedback here. This folder holds a small
-Cloudflare Worker that stores it in a D1 database (SQLite) on your
-Cloudflare account. Nobody else can read it.
+This folder deploys the clickable mock to Cloudflare as one Worker:
+
+- **The demo.** Cloudflare serves the files in the folder above (`index.html`,
+  `app.js` and the rest) as a static site. Those requests are free and
+  never run this code.
+- **Feedback.** Requests to `/feedback` run `src/index.js`, which checks
+  each entry and stores it in a D1 database (Cloudflare's hosted SQLite)
+  on your account. Nobody else can read it.
+
+The demo and the feedback endpoint share one URL, so `config.js` uses the
+relative path `/feedback`.
 
 ## How feedback moves
 
@@ -10,13 +18,13 @@ Cloudflare account. Nobody else can read it.
    their device first (`localStorage`, key `sambad-feedback-v1`), so
    nothing is lost if the venue Wi-Fi drops. Entries the team hasn't
    received are never trimmed.
-2. When the page is online and an endpoint is configured, it sends queued
+2. When the page is served from a website and is online, it sends queued
    entries in batches of up to 10, with a Turnstile token proving a person
    is at the page.
 3. The Worker checks everything again and stores what passes. Entries the
    Worker accepts or rejects leave the queue. Rate-limited or failed sends
    stay queued and retry later.
-4. With no endpoint configured, entries stay on the device. The presenter
+4. When the demo is opened from disk, entries stay on the device. The presenter
    exports them from **Demo > Feedback on this device** as CSV or JSON.
 
 ## Spam protection
@@ -46,44 +54,45 @@ count each visitor's final pick only:
 
 Raw IP addresses are never stored, only a salted SHA-256 hash.
 
-## Set it up (about 10 minutes)
+## Set it up (about 15 minutes)
 
 You need a free Cloudflare account and Node.js.
+
+**Turnstile (dashboard):**
+1. Open Turnstile and add a widget in Managed mode. Add the hostname
+   `workers.dev` and, for local testing, `localhost`.
+2. The **site key** is public. It goes in `../config.js` as
+   `turnstileSiteKey`.
+3. The **secret key** is set on the Worker below. Never commit it.
+
+**Database and deploy (terminal):**
 
 ```bash
 cd docs/mock-wireframes/feedback-worker
 npx wrangler login
 npx wrangler d1 create sambad-feedback          # copy the database_id into wrangler.toml
 npx wrangler d1 execute sambad-feedback --remote --file=schema.sql
+npx wrangler deploy                             # prints https://sambad-demo.<you>.workers.dev
+npx wrangler secret put TURNSTILE_SECRET        # paste the Turnstile secret key when asked
+openssl rand -hex 32 | npx wrangler secret put IP_SALT
+openssl rand -hex 32 | tee ~/.sambad-feedback-token | npx wrangler secret put ADMIN_TOKEN
+chmod 600 ~/.sambad-feedback-token              # your token for reading feedback
 ```
 
-**Turnstile:**
-1. In the Cloudflare dashboard, open Turnstile and add a widget. Use the
-   Managed mode, and add the hostname you serve the mock from (for
-   example `suman196pokhrel.github.io`).
-2. Copy the **site key**. It goes in `../config.js`.
-3. Copy the **secret key**. It goes to the Worker as a secret, below.
+Until the secrets are set, `/feedback` answers with an error and the
+demo keeps entries queued on the device, so nothing is lost.
 
-Then set the secrets and deploy:
-
-```bash
-npx wrangler secret put TURNSTILE_SECRET   # the Turnstile secret key
-npx wrangler secret put ADMIN_TOKEN        # any long random string, for reading feedback
-npx wrangler secret put IP_SALT            # any long random string
-npx wrangler deploy                        # prints https://sambad-feedback.<you>.workers.dev
-```
-
-Finally, open `../config.js` and set:
-- `endpoint` to `https://sambad-feedback.<you>.workers.dev/feedback`
-- `turnstileSiteKey` to the site key from step 2 above
-
-Also check that `ALLOWED_ORIGINS` in `wrangler.toml` lists every origin
-you serve the mock from.
+To serve the demo somewhere else as well, add that site's origin to
+`ALLOWED_ORIGINS` in `wrangler.toml`.
 
 ## Read the feedback
 
+- **Dashboard:** open Storage & Databases, then D1, then
+  `sambad-feedback`. You can browse the table or run SQL in the console.
+- **Terminal:**
+
 ```bash
-curl -H "Authorization: Bearer $ADMIN_TOKEN" "https://sambad-feedback.<you>.workers.dev/feedback?format=csv" > feedback.csv
+curl -H "Authorization: Bearer $(cat ~/.sambad-feedback-token)" "https://sambad-demo.<you>.workers.dev/feedback?format=csv" > feedback.csv
 # or query it directly
 npx wrangler d1 execute sambad-feedback --remote --command "SELECT received_at, kind, rating, topics, message, screen FROM feedback ORDER BY received_at DESC LIMIT 50"
 ```
@@ -103,10 +112,14 @@ tested yet; the first deploy is that test.
 
 ## Things to know
 
-- **Opening the mock from disk won't send.** Turnstile only works on the
-  hostnames you register, so a mock opened with `file://` keeps
-  everything on the device. At events, use the hosted URL, or serve the
-  folder locally (`python3 -m http.server 8000`) and add `localhost` to
-  the Turnstile widget.
+- **Opening the mock from disk won't send.** A copy opened with `file://`
+  keeps everything on the device.
+- **At events, open the hosted URL while you have internet, and keep the
+  tab open.** If the Wi-Fi drops, feedback queues on the laptop and is
+  sent once it reconnects. With no internet at all, the hosted page can't
+  load, so open the copy from disk and export the feedback afterwards.
+- **Turnstile hostnames.** If the human check fails on the live site,
+  add the exact hostname (`sambad-demo.<you>.workers.dev`) to the
+  Turnstile widget.
 - **Visitors can see the endpoint URL.** It's public by design, which is
   why the Worker never trusts the page.

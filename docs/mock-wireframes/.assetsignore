@@ -1,0 +1,3 @@
+# Files in docs/mock-wireframes/ that Cloudflare must not publish with the demo.
+feedback-worker
+.assetsignore
