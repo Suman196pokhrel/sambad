@@ -220,3 +220,102 @@ window.DATA = {
   answeringModels: ['llama-3.1-8b-instruct', 'qwen2.5-14b-instruct', 'mistral-nemo-12b'],
   searchModels: ['bge-base-en-v1.5', 'bge-large-en-v1.5', 'nomic-embed-text'],
 };
+
+/* ── richer data for the redesigned views (freshness, coverage, charts) ── */
+(() => {
+  const D = window.DATA;
+  // Days since each cited document last changed, and who changed it.
+  const AGE = { refunds: [3, 'Grace L.'], financeOps: [35, 'Grace L.'], reseller: [6, 'Omar S.'], vendorRunbook: [425, 'Tom B.'],
+    handbookLeave: [60, 'Lena W.'], handbookExit: [21, 'Lena W.'], oncall: [7, 'Dev K.'], travel: [580, 'Grace L.'],
+    expenses: [14, 'Grace L.'], parental: [120, 'Lena W.'], itSetup: [335, 'Sam T.'], contractorProc: [21, 'Lena W.'] };
+  for (const k in AGE) Object.assign(D.docs[k], { age: AGE[k][0], editor: AGE[k][1] });
+
+  // considered: found but not used. parts: what the question breaks into, for the coverage bar.
+  const EXTRA = {
+    reseller: { considered: ['refunds', 'financeOps'], parts: ['Reseller purchases'] },
+    refund: { considered: ['reseller', 'expenses'], parts: ['First 30 days', 'After 30 days', 'Monthly plans'] },
+    invoice: { considered: ['expenses'], parts: ['Where to send them', 'When they are paid'] },
+    sick: { considered: ['contractorProc'], parts: ['Sick leave for contractors'] },
+    notice: { considered: ['handbookLeave', 'contractorProc'], parts: ['Notice period', 'Payout on notice'], missingPart: 1 },
+    oncall: { considered: ['itSetup', 'handbookLeave'], parts: ['How the rotation works', 'Where the schedule lives'] },
+    flight: { considered: ['financeOps', 'vendorRunbook'], parts: ['Booking', 'Class of travel', 'Claiming it back'] },
+    vendor: { considered: ['financeOps'], parts: ['Who approves a vendor', 'How security review works'] },
+    parental: { considered: ['handbookLeave', 'handbookExit'], parts: ['Primary carers', 'Secondary carers'] },
+    vpn: { considered: ['oncall'], parts: ['Installing it', 'Getting the laptop approved'] },
+    contractorApproval: { considered: ['handbookLeave', 'vendorRunbook'], parts: ['Who approves', 'Paperwork'] },
+  };
+  D.scenarios.forEach(s => Object.assign(s, EXTRA[s.id]));
+  Object.assign(D.fallback, { considered: ['handbookLeave'], parts: ['Your question'] });
+
+  D.topics = [
+    { name: 'Money', blurb: 'Refunds, invoices and expenses', ids: ['refund', 'invoice', 'flight'] },
+    { name: 'People', blurb: 'Leave, notice and contractors', ids: ['sick', 'notice', 'parental'] },
+    { name: 'Engineering and IT', blurb: 'On-call, laptops and access', ids: ['oncall', 'vpn'] },
+  ];
+
+  // Seeded random so charts look the same on every load.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const spread = (weights, total) => { const s = weights.reduce((a, b) => a + b, 0); return weights.map(w => Math.round(w / s * total)); };
+  const make = (labels, weights, total, missRate) => {
+    const all = spread(weights.map(w => w * (0.85 + rnd() * 0.3)), total);
+    const missed = all.map(v => Math.round(v * (missRate + (rnd() - 0.5) * 0.08)));
+    return { labels, answered: all.map((v, i) => v - missed[i]), missed };
+  };
+  const hours = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
+  const days30 = Array.from({ length: 30 }, (_, i) => { const d = new Date(2026, 9, 17 + i); return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); });
+  D.series = {
+    '24h': make(hours, hours.map((_, h) => h < 7 ? 0.2 : h < 9 ? 1.5 : h < 18 ? 4 + Math.sin(h) : h < 21 ? 1 : 0.3), 52, 0.12),
+    '7d': make(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], [62, 70, 66, 74, 50, 10, 9], 341, 0.14),
+    '30d': make(days30, days30.map((_, i) => (i % 7 === 5 || i % 7 === 6) ? 0.2 : 1 + i / 40), 1408, 0.16),
+  };
+
+  // Where the knowledge lives: share of each space's documents changed in the last 6 months.
+  D.spaces = [
+    { src: 'Confluence', name: 'Engineering', docs: 420, fresh: 0.84 }, { src: 'Confluence', name: 'Finance', docs: 236, fresh: 0.52 },
+    { src: 'Confluence', name: 'People Ops', docs: 198, fresh: 0.71 }, { src: 'Confluence', name: 'Product', docs: 164, fresh: 0.88 },
+    { src: 'Confluence', name: 'Sales', docs: 84, fresh: 0.63 }, { src: 'Google Drive', name: 'Shared drives', docs: 96, fresh: 0.47 },
+    { src: 'Google Drive', name: 'Finance', docs: 52, fresh: 0.31 }, { src: 'Google Drive', name: 'Partnerships', docs: 34, fresh: 0.76 },
+  ];
+
+  // Age (months since last change) against citations this week, for the freshness scatter.
+  D.scatter = [
+    ['vendor-runbook', 'Vendor Payment Runbook', 14, 19], ['it-setup', 'Onboarding: IT Setup', 11.2, 14], ['travel-2024', 'Travel Policy 2024', 19, 10],
+    ['refunds', 'Billing & Refunds Policy', 0.1, 22], ['oncall', 'On-call Handbook', 0.25, 16], ['leave', 'Employee Handbook: Leave', 2, 12],
+    ['finops', 'Finance Ops Handbook', 1.2, 9], ['expenses', 'Expense Guide', 0.5, 11], ['parental', 'Parental Leave: Australia', 4, 6],
+    ['reseller', 'Partner & Reseller Agreement', 0.2, 7], ['incident', 'Incident Process', 3, 8], ['security', 'Security Overview', 7, 5],
+    ['brand', 'Brand Guidelines v3', 16, 2], ['office', 'Office Handbook', 13, 4.5], ['benefits', 'Benefits Summary', 9, 7],
+    ['hiring', 'Hiring Plan H2', 2, 3], ['sales', 'Sales Playbook', 6, 9], ['design', 'Design System Notes', 8, 3],
+    ['api', 'API Style Guide', 5, 6], ['release', 'Release Checklist', 1, 8], ['retention', 'Data Retention Policy', 15, 5],
+    ['laptop', 'Laptop Refresh Policy', 22, 3], ['holiday', 'Holiday Calendar 2025', 12.5, 6], ['pricing', 'Pricing FAQ', 18, 4],
+    ['escalations', 'Customer Escalations', 1.5, 10], ['exit', 'Employee Handbook: Exit', 0.7, 6], ['contractor', 'Contractor Engagement Process', 0.7, 5],
+    ['roadmap', 'Product Roadmap 2026', 0.4, 4], ['okr', 'Company OKRs', 1.8, 2], ['wifi', 'Office Wi-Fi Setup', 20, 1],
+  ].map(([id, t, age, cites]) => ({ id, t, age, cites }));
+
+  // Last 24 sync attempts per connector, oldest first. x = failed.
+  D.connectors[0].beats = 'oooooooooooooooooooooooo';
+  D.connectors[1].beats = 'oooooooooooooooooooooxxx';
+  D.connectors[0].src = 'Confluence';
+  D.connectors[1].src = 'Google Drive';
+
+  // Asks per day over the last 14 days, per knowledge gap.
+  const TR = { g1: [0, 1, 0, 2, 1, 1, 0, 2, 1, 3, 2, 1, 2, 1], g2: [1, 0, 1, 1, 0, 2, 1, 0, 1, 1, 1, 0, 1, 1], g3: [0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+    g4: [0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0], g5: [0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1], g6: [2, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0] };
+  D.gaps.forEach(g => { g.trend = TR[g.id]; });
+  D.gaps[0].who = ['Ana R.', 'Dev K.', 'Tom B.', 'Sam T.']; D.gaps[1].who = ['Priya M.', 'Grace L.', 'Omar S.'];
+  D.gaps[2].who = ['Lena W.', 'Dev K.']; D.gaps[3].who = ['Sam T.', 'Ana R.']; D.gaps[4].who = ['Omar S.']; D.gaps[5].who = ['Grace L.', 'Priya M.'];
+
+  // How confident Sambad was on last week's questions, low to high, in 20 buckets.
+  D.confidence = [1, 1, 2, 2, 3, 3, 4, 4, 5, 6, 7, 8, 10, 14, 20, 28, 40, 52, 62, 70];
+
+  D.groupParent = { 'all-staff': null, engineering: 'all-staff', 'backend-guild': 'engineering', 'frontend-guild': 'engineering', 'finance-team': 'all-staff', contractors: null };
+  D.modelInfo = {
+    'llama-3.1-8b-instruct': ['8B', 'Fast on a single GPU. A good default.'],
+    'qwen2.5-14b-instruct': ['14B', 'Better at long policies. Needs about 16 GB of GPU memory.'],
+    'mistral-nemo-12b': ['12B', 'Strong with mixed languages. Middle on speed.'],
+    'bge-base-en-v1.5': ['110M', 'Balanced speed and quality for English.'],
+    'bge-large-en-v1.5': ['335M', 'More accurate search, about 3x slower to index.'],
+    'nomic-embed-text': ['137M', 'Handles very long documents well.'],
+  };
+  D.sourceBlurb = { Confluence: 'Spaces and pages', 'Google Drive': 'Docs, Sheets and PDFs', Notion: 'Workspaces and pages', SharePoint: 'Sites and libraries', 'Upload files': 'PDF, Word, Markdown' };
+})();
