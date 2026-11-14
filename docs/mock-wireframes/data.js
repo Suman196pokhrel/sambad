@@ -172,20 +172,20 @@ window.DATA = {
     ] },
 
   audit: [
-    { time: '14:32', day: 0, person: 'Priya M.', q: "What's our refund policy for annual plans?", used: ['Billing & Refunds Policy · chunk 4', 'Billing & Refunds Policy · chunk 5', 'Finance Ops Handbook · chunk 31'], withheld: [] },
-    { time: '14:20', day: 0, person: 'Dev K.', q: 'How do contractors submit invoices?', used: ['Vendor Payment Runbook · chunk 17', 'Vendor Payment Runbook · chunk 18'],
-      withheld: [['Vendor Payment Runbook · chunk 19', 'Bank details, finance-team only', 'deny rule'], ['Vendor Payment Runbook · chunk 20', 'Bank details, finance-team only', 'deny rule'], ['Regional Pricing 2026 · chunk 4', 'Not a member of pricing-committee', 'no allow rule']] },
+    { time: '14:32', day: 0, person: 'Priya M.', q: "What's our refund policy for annual plans?", used: ['Billing & Refunds Policy, piece 4', 'Billing & Refunds Policy, piece 5', 'Finance Ops Handbook, piece 31'], withheld: [] },
+    { time: '14:20', day: 0, person: 'Dev K.', q: 'How do contractors submit invoices?', used: ['Vendor Payment Runbook, piece 17', 'Vendor Payment Runbook, piece 18'],
+      withheld: [['Vendor Payment Runbook, piece 19', 'Bank details, finance-team only', 'deny rule'], ['Vendor Payment Runbook, piece 20', 'Bank details, finance-team only', 'deny rule'], ['Regional Pricing 2026, piece 4', 'Not a member of pricing-committee', 'no allow rule']] },
     { time: '13:58', day: 0, person: 'Ana R.', q: 'How many sick days do contractors get?', used: [], withheld: [] },
-    { time: '11:05', day: 0, person: 'Sam T.', q: 'What are the salary bands for senior engineers?', used: ['Career Ladder: Engineering · chunk 2'],
-      withheld: [['Compensation Bands · chunk 7', 'Not a member of people-leads', 'no allow rule'], ['Compensation Bands · chunk 8', 'Not a member of people-leads', 'no allow rule']] },
-    { time: '09:41', day: 0, person: 'Priya M.', q: "What's the on-call rotation?", used: ['On-call Handbook · chunk 2', 'On-call Handbook · chunk 3'], withheld: [] },
-    { time: 'Tue 16:12', day: 3, person: 'Dev K.', q: 'How do I set up VPN on a new laptop?', used: ['Onboarding: IT Setup · chunk 3'], withheld: [] },
-    { time: 'Mon 10:27', day: 4, person: 'Ana R.', q: 'Who signs off on new vendors?', used: ['Vendor Payment Runbook · chunk 2'], withheld: [['Vendor Payment Runbook · chunk 19', 'Bank details, finance-team only', 'deny rule']] },
+    { time: '11:05', day: 0, person: 'Sam T.', q: 'What are the salary bands for senior engineers?', used: ['Career Ladder: Engineering, piece 2'],
+      withheld: [['Compensation Bands, piece 7', 'Not a member of people-leads', 'no allow rule'], ['Compensation Bands, piece 8', 'Not a member of people-leads', 'no allow rule']] },
+    { time: '09:41', day: 0, person: 'Priya M.', q: "What's the on-call rotation?", used: ['On-call Handbook, piece 2', 'On-call Handbook, piece 3'], withheld: [] },
+    { time: 'Tue 16:12', day: 3, person: 'Dev K.', q: 'How do I set up VPN on a new laptop?', used: ['Onboarding: IT Setup, piece 3'], withheld: [] },
+    { time: 'Mon 10:27', day: 4, person: 'Ana R.', q: 'Who signs off on new vendors?', used: ['Vendor Payment Runbook, piece 2'], withheld: [['Vendor Payment Runbook, piece 19', 'Bank details, finance-team only', 'deny rule']] },
   ],
 
   people: {
     'Dev K.': { groups: [['all-staff', 0, 'direct'], ['engineering', 0, 'direct'], ['backend-guild', 1, 'inherited'], ['oncall-tier-2', 2, 'inherited'], ['contractors', 0, 'deny source']],
-      see: 1061, partial: 37, none: 186, docs: [['Vendor Payment Runbook', 21, 3, 'deny · contractors'], ['Compensation Bands', 4, 28, 'no allow rule']] },
+      see: 1061, partial: 37, none: 186, docs: [['Vendor Payment Runbook', 21, 3, 'deny rule for contractors'], ['Compensation Bands', 4, 28, 'no allow rule']] },
     'Priya M.': { groups: [['all-staff', 0, 'direct'], ['engineering', 0, 'direct'], ['backend-guild', 1, 'inherited'], ['oncall-tier-2', 2, 'direct']],
       see: 1188, partial: 12, none: 84, docs: [['Compensation Bands', 4, 28, 'no allow rule'], ['Regional Pricing 2026', 2, 9, 'no allow rule']] },
     'Ana R.': { groups: [['all-staff', 0, 'direct'], ['finance-team', 0, 'direct']],
@@ -212,7 +212,7 @@ window.DATA = {
       ex: ['Is there parking at the Sydney office?', 'Can I claim parking costs?'] },
     { id: 'g5', title: 'Using personal devices for work', people: 3, asks: 4, status: 'open',
       ex: ['Can I check email on my own phone?', 'Is there a BYOD policy?'] },
-    { id: 'g6', title: 'Expense limits by region', people: 6, asks: 6, status: 'resolved', note: 'Marked written 4 days ago · asks dropped to 0' },
+    { id: 'g6', title: 'Expense limits by region', people: 6, asks: 6, status: 'resolved', note: 'Marked written 4 days ago. Asks dropped to 0.' },
   ],
   owners: ['People Ops', 'Security', 'Finance', 'IT'],
 
