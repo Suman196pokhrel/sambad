@@ -16,6 +16,11 @@ Ollama or vLLM, or a private cloud endpoint. `docker compose up`.
 
 > **Status:** under active development. Not usable yet.
 
+**Try the clickable demo:** open `docs/mock-wireframes/index.html` in a
+browser. It uses made-up data and needs no install. Feedback from it is
+stored on the device, or sent to your own Cloudflare Worker once you set
+one up (see `docs/mock-wireframes/feedback-worker/README.md`).
+
 ---
 
 ## Stack
@@ -118,6 +123,7 @@ for application code.
 ### Docs
 
 ```
+mock-wireframes/       Clickable HTML demo, plus feedback-worker/ that collects visitor feedback
 decisions/             One file per architectural decision: what, why, what was rejected
 stories/               Prose walkthroughs of key flows, written before the code
 SCHEMA.md              Data model reference

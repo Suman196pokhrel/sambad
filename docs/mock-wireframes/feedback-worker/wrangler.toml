@@ -1,0 +1,16 @@
+# Sambad demo feedback Worker: Cloudflare deploy settings.
+# Fill in database_id after `npx wrangler d1 create sambad-feedback`, and list
+# every origin the mock is served from (no trailing slash). Secrets are set
+# with `npx wrangler secret put`, never written here. See README.md.
+
+name = "sambad-feedback"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://suman196pokhrel.github.io,http://localhost:8000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sambad-feedback"
+database_id = "REPLACE_WITH_ID_FROM_D1_CREATE"

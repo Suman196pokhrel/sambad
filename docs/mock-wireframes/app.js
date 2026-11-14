@@ -5,7 +5,11 @@
  * saves are faked with timers so the mock feels like the real product with
  * no backend. Charts are hand-drawn SVG so there are no dependencies.
  * State lives in localStorage so a refresh keeps you signed in; the Demo
- * button (bottom right) forces edge states and resets everything.
+ * tab (right edge) forces edge states and resets everything.
+ * The last section frames it as a demo (top bar, first-visit intro) and runs
+ * the visitor feedback tool: entries are kept on the device under their own
+ * key, survive demo resets, and are sent to feedback-worker/ when config.js
+ * names an endpoint.
  */
 (() => {
 'use strict';
@@ -46,6 +50,9 @@ const P = {
   thumbDown: 'M17 13V4h3v9zM17 13l-4 7c-1.5 0-2.5-1-2.2-2.6l.4-3.4H5a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 6.2 4H17',
   book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5', info: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16zM12 11v5M12 8v.5',
   download: 'M12 4v12M6 10l6 6 6-6M5 20h14', doc: 'M7 3h7l5 5v13H7zM14 3v5h5',
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1',
+  target: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 11.5v1',
+  msg: 'M4 5h16v11H8l-4 4zM8 9h8M8 12.5h5', lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
 };
 const ic = n => `<svg class="svg" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
 const MARK = `<svg class="mark" viewBox="0 0 240 260" aria-hidden="true"><polygon points="82,115 10,150 55,205" fill="#12564A"/><polygon points="158,115 230,150 185,205" fill="#12564A"/><polygon points="120,25 158,115 120,230 82,115" fill="#12564A"/><polygon points="120,25 128,45 112,45" fill="#12181A"/><polygon points="120,68 132,80 120,92 108,80" fill="#12181A"/></svg>`;
@@ -61,17 +68,29 @@ const fresh = () => ({
     turns: [{ id: h.id + 'a', q: D.scenarios.find(s => s.id === h.sid).q, sid: h.sid, status: 'done' }] })),
   flags: { serviceDown: false, emptyWorkspace: false, slow: false },
   connectors: clone(D.connectors), gaps: clone(D.gaps), run: { ...clone(D.run), skipped: 0 }, model: clone(D.model), reviewed: {},
+  introSeen: false, votes: {}, settings: clone(D.settings),
 });
 let S;
-try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { S = fresh(); }
+// Stored state from an older version of the mock may lack newer fields, so lay it over fresh defaults.
+try {
+  const st = JSON.parse(localStorage.getItem(KEY)), f = fresh();
+  S = st && typeof st === 'object' ? { ...f, ...st, flags: { ...f.flags, ...st.flags }, settings: { ...f.settings, ...st.settings } } : f;
+} catch { S = fresh(); }
+// An answer cut off by a reload can't resume, so show it as stopped with a retry.
+S.threads.forEach(t => t.turns.forEach(u => { if (u.status === 'pending') u.status = 'stopped'; }));
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S, (k, v) => k === '_t' ? undefined : v)); } catch { /* private mode: this tab only */ } };
 
 /* ── overlays: toast, confirm, tooltip ────────── */
 function toast(msg, undo, kind = 'check') {
+  const box = $('#toasts');
+  // Rapid clicks shouldn't stack copies of the same message or bury the screen.
+  if ([...box.children].some(t => !t.classList.contains('out') && t.dataset.msg === msg)) return;
+  [...box.children].filter(t => !t.classList.contains('out')).slice(0, -2).forEach(t => t.remove());
   const el = document.createElement('div');
+  el.dataset.msg = msg;
   el.className = 'toast';
   el.innerHTML = `${ic(kind)}<span>${esc(msg)}</span>${undo ? '<button>Undo</button>' : ''}`;
-  $('#toasts').append(el);
+  box.append(el);
   const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 200); };
   if (undo) el.querySelector('button').onclick = () => { undo(); close(); };
   setTimeout(close, undo ? 5000 : 2800);
@@ -159,16 +178,36 @@ function render() {
 
 /* ── event wiring (one delegated listener per event type) ── */
 const A = {}, F = {}, I = {};
+// Runs a handler once at a time per element: while its promise is pending, more clicks or
+// Enter presses on the same element are ignored, so spamming a button can't double an action.
+function guarded(el, fn) {
+  if (el.dataset.busy) return;
+  let r;
+  try { r = fn(); } catch (err) { return oops(err); }
+  if (r && typeof r.then === 'function') {
+    el.dataset.busy = '1';
+    r.catch(oops).finally(() => delete el.dataset.busy);
+  }
+}
+let oopsAt = 0;
+function oops(err) {
+  console.error(err);
+  if (Date.now() - oopsAt < 4000) return;
+  oopsAt = Date.now();
+  toast("That didn't work. It's a bug in the demo, so tell us with Feedback.", null, 'alert');
+}
+addEventListener('error', e => oops(e.error || e.message));
+addEventListener('unhandledrejection', e => oops(e.reason));
 document.addEventListener('click', e => {
   if (!e.target.closest('.menu,[data-menu]')) $$('.menu').forEach(m => m.remove());
   const el = e.target.closest('[data-act]');
-  if (el && A[el.dataset.act]) { e.preventDefault(); hideTip(); A[el.dataset.act](el, e); }
+  if (el && A[el.dataset.act]) { e.preventDefault(); hideTip(); guarded(el, () => A[el.dataset.act](el, e)); }
 });
 document.addEventListener('submit', e => {
   const f = e.target.closest('form[data-form]');
   if (!f) return;
   e.preventDefault();
-  F[f.dataset.form]?.(f, e.submitter || f.querySelector('[type=submit]'));
+  if (F[f.dataset.form]) guarded(f, () => F[f.dataset.form](f, e.submitter || f.querySelector('[type=submit]')));
 });
 document.addEventListener('input', e => { const el = e.target.closest('[data-in]'); if (el) I[el.dataset.in]?.(el, e); });
 document.addEventListener('keydown', e => {
@@ -179,7 +218,11 @@ document.addEventListener('keydown', e => {
   }
   if (e.key !== 'Escape') return;
   $$('.menu').forEach(m => m.remove());
+  if (pointing) return A.pointCancel();
+  if ($('.intro')) return A.introClose();
+  if ($('.inbox')) return ($('#overlay').innerHTML = '');
   if ($('.pal')) return closePalette();
+  if (fbs.open && !$('.modal')) return closeFb();
   A.dclose(); $('#shell')?.classList.remove('navopen'); $('#demo').innerHTML = '';
 });
 // Hover: data-tip tooltips, citation hover cards, and source-to-claim linking.
@@ -228,6 +271,11 @@ I.strength = el => {
 };
 const findUser = email => Object.values(D.users).find(u => u.email === email) || S.accounts[email];
 function signIn(u, msg, dest) {
+  // The seeded people belong to Acme, so bring Acme back if someone created another workspace earlier.
+  if (Object.values(D.users).includes(u) && S.workspace !== D.workspace) {
+    Object.assign(S, { workspace: D.workspace, connectors: clone(D.connectors), scope: [] });
+    S.flags.emptyWorkspace = false;
+  }
   S.session = { name: u.name, short: u.short || shortName(u.name), email: u.email, role: u.role };
   S.pending = null;
   save();
@@ -280,7 +328,11 @@ function pSSO() {
       <a class="link small" href="#/login">Cancel</a>`;
   });
 }
-A.ssoPick = async el => { $('#idp').innerHTML = idpWait('Signing you in…'); await sleep(700); signIn(D.users[el.dataset.u]); };
+A.ssoPick = async el => {
+  $('#idp').innerHTML = idpWait('Signing you in…');
+  await sleep(700);
+  if (location.hash === '#/sso') signIn(D.users[el.dataset.u]);
+};
 
 function pSignup() {
   authWrap('Create your workspace', 'For the person setting Sambad up. Everyone else joins by invite or with their work account.', `
@@ -379,11 +431,8 @@ A.fillOtp = async () => {
   otpMaybeSubmit();
 };
 F.verify = async (f, btn) => {
-  if (f.dataset.busy) return;
   if (otpCode().length < 6) return errMsg('Enter all 6 digits.');
-  f.dataset.busy = '1';
   await busy(btn, 800);
-  delete f.dataset.busy;
   const otp = $('#otp');
   if (!otp) return;
   if (otpCode() !== D.otp) {
@@ -600,7 +649,7 @@ function pAsk(id) {
   dr = null;
   app.innerHTML = `<div class="shell ${S.collapsed ? 'collapsed' : ''}" id="shell"><div class="scrim-side" data-act="nav"></div>
     <aside class="rail">
-      <div class="rail-top"><div class="brand">${MARK}<span class="hide-c">Sambad</span></div>
+      <div class="rail-top"><div class="brand">${MARK}<span class="hide-c">${esc(S.settings.assistant || 'Sambad')}</span></div>
         <button class="btn ghost sm icon hide-m" data-act="collapse" data-tip="${S.collapsed ? 'Expand' : 'Collapse'} sidebar" aria-label="Toggle sidebar">${ic('sidebar')}</button></div>
       <a class="btn new" href="#/ask" ${S.collapsed ? 'data-tip="New question"' : ''}>${ic('plus')}<span class="hide-c">New question</span></a>
       <button class="btn find" data-act="palette" ${S.collapsed ? 'data-tip="Search"' : ''}>${ic('search')}<span class="hide-c">Search</span><span class="kbd hide-c">⌘K</span></button>
@@ -626,7 +675,7 @@ function pAsk(id) {
   if (innerWidth > 760) box?.focus({ preventScroll: true });
 }
 const boxHTML = followUp => `<form data-form="ask" class="box ${S.flags.emptyWorkspace ? 'off' : ''}" id="box">
-    <textarea id="qbox" rows="1" data-in="qbox" placeholder="${followUp ? 'Ask a follow-up' : "Ask about anything in your company's documents"}" aria-label="Your question"></textarea>
+    <textarea id="qbox" rows="1" maxlength="1000" data-in="qbox" placeholder="${followUp ? 'Ask a follow-up' : "Ask about anything in your company's documents"}" aria-label="Your question"></textarea>
     <div class="box-row"><span class="wrap-menu"><button type="button" class="scope" data-act="scope" data-menu>${ic('layers')}<span id="scopeLbl">${esc(scopeLabel())}</span>${ic('chev')}</button></span>
       <button type="button" class="auto" data-act="example">${SPARK} Try an example</button>
       <button class="send" id="send" type="submit" aria-label="Send" ${running ? 'disabled' : ''}>${ic('up')}</button></div></form>
@@ -681,9 +730,9 @@ A.example = () => {
 F.ask = () => ask($('#qbox').value);
 
 function ask(q) {
-  q = q.trim();
+  q = q.trim().slice(0, 1000);
   if (!q || S.flags.emptyWorkspace) return;
-  if (running) return toast('Sambad is still answering. Stop it or wait a moment.', null, 'info');
+  if (running || S.threads.some(t => t.turns.some(u => u.status === 'pending'))) return toast('Sambad is still answering. Stop it or wait a moment.', null, 'info');
   const turn = { id: 'u' + Date.now(), q, sid: matchScenario(q), status: 'pending' };
   const { parts } = parse();
   let t = parts[0] === 'ask' && parts[1] && S.threads.find(x => x.id === parts[1]);
@@ -734,7 +783,8 @@ const statusHTML = (text, working) => `<div class="status">${working ? '<span cl
   ${working ? `<button class="btn ghost sm stopb" data-act="stop">${ic('stop')} Stop</button>` : ''}</div>${working ? '<div class="scan"></div>' : ''}`;
 function doneText(sc, u) {
   const found = tileOrder(sc).length, used = sc.kind === 'abstain' ? 0 : sc.sources.length;
-  const t = used ? `Read ${found} documents and used ${used}` : `Read ${found} documents, none of them cover this`;
+  const docs = `${found} document${found === 1 ? '' : 's'}`;
+  const t = used ? `Read ${docs} and used ${used}` : found === 1 ? `Read ${docs}, it doesn't cover this` : `Read ${docs}, none of them cover this`;
   return u.secs ? `${t}, in ${u.secs}s` : t;
 }
 function coverHTML(sc, u) {
@@ -764,6 +814,11 @@ function bodyHTML(t, u, i, animate = false) {
   if (sc.kind === 'abstain') {
     h += `<div class="nc"><h3>This isn't covered in your documents.</h3><p>${esc(sc.text)}</p>${sc.near ? tileHTML(sc.near) : ''}
       <div class="acts"><button class="btn brand sm" data-act="askPerson" data-p="${sc.person}">Ask ${sc.person}</button>${flagBtn(u)}</div></div>`;
+    if (sc.id === 'fallback') h += `<div class="demo-note">${ic('info')}<div><b>Demo note: this demo only knows Acme's sample documents.</b>
+      In a real workspace Sambad would search your own. Questions people try here tell us what to build first.
+      <div class="acts">${u.qSent ? `<button class="btn sm on">${ic('check')} Sent to the team</button>`
+        : `<button class="btn sm" data-act="fbQuestion" data-turn="${u.id}">${ic('msg')} Send this question to the team</button>`}
+        <button class="auto" data-act="example">${SPARK} Try a question it knows</button></div></div></div>`;
   } else {
     h += `<div class="prose">${claimsHTML(sc.answer, u.id)}</div>`;
     const stale = sc.sources.map(k => D.docs[k]).filter(docStale);
@@ -963,7 +1018,7 @@ const openGaps = () => S.gaps.filter(g => g.status === 'open');
 const NAV = [
   ['Monitor', [['', 'Overview', 'gauge'], ['freshness', 'Sync & freshness', 'clock', staleCount], ['gaps', 'Knowledge gaps', 'help', () => openGaps().length]]],
   ['Security', [['audit', 'Access audit', 'shield'], ['inspector', 'Access inspector', 'eye'], ['people', 'People & groups', 'users']]],
-  ['Setup', [['connectors', 'Connectors', 'plug'], ['model', 'Model', 'cpu']]],
+  ['Setup', [['connectors', 'Connectors', 'plug'], ['model', 'Model', 'cpu'], ['settings', 'Workspace settings', 'gear']]],
 ];
 let ctx = {}, navTok = 0;
 let tmp = {};   // per-page scratch state that should not survive a reload
@@ -1000,9 +1055,12 @@ function paintAdmin(skel) {
       <a class="btn brand" href="#/admin/connectors/new">${ic('plus')} Connect a source</a></div></div>`;
     return;
   }
+  // A new workspace borrows Acme's numbers once its first source is indexed, so say so.
+  const borrowed = page.needsData && S.workspace !== D.workspace
+    ? `<div class="demo-note" style="margin-bottom:18px">${ic('info')}<div><b>Demo note: these are Acme's sample numbers.</b>In a real workspace this page fills in from ${esc(S.workspace)}'s own documents and questions.</div></div>` : '';
   const fill = () => {
     const keepScroll = body.scrollTop;
-    body.innerHTML = `<div class="page">${page.body()}</div>`;
+    body.innerHTML = `<div class="page">${borrowed}${page.body()}</div>`;
     if (!skel) body.scrollTop = keepScroll;
     page.mount?.(!skel);
   };
@@ -1463,6 +1521,67 @@ const ADMIN = {
           <span id="connPill"><span class="badge ok"><span class="dot"></span>Reachable</span></span><button class="btn sm" data-act="testConn">Test</button></div></div>`;
     },
   },
+  /* ── workspace settings: what IT and security ask about before rollout ── */
+  settings: {
+    init: () => { tmp.stab ??= 'access'; },
+    body: () => {
+      const st = S.settings, tab = tmp.stab;
+      const sw = (k, label, sub) => `<div class="setrow"><div class="grow"><b>${label}</b><small>${sub}</small></div>
+        <button class="switch ${st[k] ? 'on' : ''}" data-act="setToggle" data-k="${k}" role="switch" aria-checked="${!!st[k]}" aria-label="${esc(label)}"></button></div>`;
+      const choice = (k, label, sub, opts) => `<div class="setrow wrap"><div class="grow"><b>${label}</b><small>${sub}</small></div>${seg('setSeg', opts.map(o => [o, o]), st[k], `data-k="${k}"`)}</div>`;
+      const views = {
+        access: `<div class="panel">${secH('Single sign-on', 'People sign in with their company account')}
+            <div class="setrow"><div class="conn grow">${glyph(st.idp, 'lg')}<div><b>${esc(st.idp)}, SAML 2.0</b><small>Connected. 312 people signed in this month.</small></div></div><button class="btn sm" data-act="testSso">Test sign-in</button></div>
+            ${sw('sso', 'Require single sign-on', 'Turns off email and password sign-in for everyone except the owner.')}
+            ${sw('scim', 'Automatic user provisioning (SCIM)', `New hires get access on day one and leavers lose it within minutes. Last update from ${esc(st.idp)} 3 minutes ago.`)}
+            ${choice('session', 'Sign people out after', 'This long without any activity', ['8 hours', '24 hours', '7 days'])}</div>
+          <div class="panel sec">${secH('Allowed email domains', 'Only these domains can join with email and password')}
+            <div class="chipset" style="margin-bottom:12px">${st.domains.map(d => `<span class="chip on">${esc(d)}<button class="chip-x" data-act="domainDel" data-d="${esc(d)}" aria-label="Remove ${esc(d)}">${ic('x')}</button></span>`).join('') || '<span class="small muted">No domains. Only single sign-on and invites can add people.</span>'}</div>
+            <form data-form="domainAdd" class="row" novalidate><input class="in" name="domain" id="domIn" placeholder="example.com" maxlength="60" autocomplete="off"><button class="btn" type="submit">Add domain</button></form>
+            <div id="domErr"></div><div class="autos" style="margin-top:8px"><button class="auto" data-act="fillDomain">${SPARK} acme.io</button></div></div>
+          <div class="panel sec">${secH('Admins and roles', 'Who can change what. Everyone else is a member who can ask questions.')}
+            ${st.admins.map(([n, e, r], i) => `<div class="listrow"><span class="av sm soft">${initials(n)}</span><span class="grow"><b>${esc(n)}</b><div class="small muted">${esc(e)}</div></span>
+              ${r === 'Owner' ? '<span class="badge brand">Owner</span>' : `<span class="wrap-menu"><button class="btn sm" data-act="roleMenu" data-i="${i}" data-menu>${esc(r)} ${ic('chev')}</button></span>
+              <button class="btn ghost sm icon" data-act="adminDel" data-i="${i}" aria-label="Remove ${esc(n)}" data-tip="Remove admin">${ic('x')}</button>`}</div>`).join('')}
+            <form data-form="adminAdd" class="row" style="margin-top:14px" novalidate><input class="in" name="email" id="admIn" type="email" placeholder="colleague@acme.com" maxlength="120" autocomplete="off"><button class="btn" type="submit">Invite as admin</button></form>
+            <div id="admErr"></div><div class="autos" style="margin-top:8px"><button class="auto" data-act="fillAdmin">${SPARK} ravi@acme.com</button></div>
+            <div class="roles">${Object.entries(D.roles).map(([r, d]) => `<div><b>${r}</b><span>${d}</span></div>`).join('')}</div></div>`,
+        answers: `<div class="panel">${secH('Name and behaviour', 'What employees see when they ask')}
+            <div class="field"><label for="asstIn">Assistant name</label><input class="in" id="asstIn" data-in="asstName" maxlength="30" value="${esc(st.assistant)}" placeholder="Sambad" style="max-width:320px"></div>
+            <p class="small muted" style="margin:-6px 0 6px">Shown in the sidebar of the ask screen. Try "Ask Acme".</p>
+            ${sw('strict', 'Only answer with a source', 'Sentences that no document supports are left out instead of guessed.')}</div>
+          <div class="panel sec">${secH("When something isn't covered", 'Who gets the question when the documents have no answer, by topic')}
+            ${Object.entries(st.routes).map(([t, o]) => `<div class="listrow"><span class="grow"><b>${esc(t)}</b></span><span class="wrap-menu"><button class="btn sm" data-act="routeMenu" data-t="${esc(t)}" data-menu>${ic('users')} ${esc(o)} ${ic('chev')}</button></span></div>`).join('')}</div>
+          <div class="panel sec">${planned('languages')}</div>`,
+        privacy: `<div class="panel">${secH('How long to keep things', 'Older records are deleted automatically')}
+            ${choice('retainQ', 'Questions and answers', 'What people asked and what Sambad said', ['30 days', '90 days', '1 year', 'Forever'])}
+            ${choice('retainAudit', 'Access audit', 'Which pieces were used or withheld, and why', ['1 year', '3 years', '7 years'])}</div>
+          <div class="panel sec">${secH('Personal details')}
+            ${sw('redact', 'Hide personal details in logs', 'Names, emails and phone numbers inside questions are masked in analytics and exports. The access audit still records who asked.')}
+            ${sw('anonymize', 'Hide who asked in analytics', 'Admins see "someone in Finance" instead of a name. Auditors still see names.')}</div>
+          <div class="note brand sec">${ic('shield')}<div><b>Everything stays on servers you run.</b>The Sambad project never receives your documents, questions or answers. There is no phone-home.</div></div>
+          <div class="panel sec">${planned('siem')}</div>
+          <div class="panel sec">${secH('Your data')}
+            <div class="setrow"><div class="grow"><b>Export everything</b><small>Questions, answers, audit records and settings, as one archive.</small></div><button class="btn sm" data-act="exportAll">${ic('download')} Export</button></div>
+            <div class="setrow"><div class="grow"><b>Delete this workspace</b><small>Removes every index, log and setting after 7 days. Your source systems are untouched.</small></div><button class="btn sm danger" data-act="deleteWs">Delete</button></div></div>`,
+        apps: `<div class="panel">${['slack', 'teams', 'extension', 'connectorsApi'].map(planned).join('')}</div>
+          <div class="panel sec">${secH('API keys', 'For scripts and internal tools that ask Sambad on someone\'s behalf. Each call still follows that person\'s permissions.')}
+            ${tmp.newKey ? `<div class="note good" style="margin-bottom:12px">${ic('key')}<div class="grow"><b>Copy this key now. You won't see it again.</b><code class="key">${esc(tmp.newKey)}</code>
+              <div class="acts"><button class="btn sm" data-act="keyCopy">${ic('copy')} Copy key</button><button class="btn ghost sm" data-act="keyHide">I've saved it</button></div></div></div>` : ''}
+            ${st.apiKeys.map((k, i) => `<div class="listrow"><span class="sev ok">${ic('key')}</span><span class="grow"><b>${esc(k.name)}</b><div class="small muted">Ends in ${k.last4}, created ${k.created}</div></span><button class="btn ghost sm danger" data-act="keyRevoke" data-i="${i}">Revoke</button></div>`).join('') || '<p class="small muted" style="margin:0 0 12px">No keys yet.</p>'}
+            <form data-form="keyAdd" class="row" style="margin-top:12px" novalidate><input class="in" name="name" id="keyIn" placeholder="What it's for, like HR helpdesk bot" maxlength="40" autocomplete="off"><button class="btn" type="submit">Create key</button></form><div id="keyErr"></div></div>`,
+        plan: `<p class="headline" style="margin:0 0 22px">Sambad is free for personal and non-commercial use. Companies pay for a commercial licence. Prices aren't set yet, and your answer helps set them.</p>
+          <div class="plans">${D.plans.map(([n, p, d], i) => `<div class="plan ${i === 1 ? 'mid' : ''}"><b>${n}</b><div class="price">${p}</div><p>${d}</p></div>`).join('')}</div>
+          <div class="panel sec">${secH('What would feel fair for Business?', 'Per person, per month. Pick the band your company would sign off on without a long fight.')}
+            <div class="chipset">${D.priceBands.map(b => `<button class="chip ${S.votes.price === b ? 'on' : ''}" data-act="priceBand" data-b="${esc(b)}">${S.votes.price === b ? ic('check') : ''}${esc(b)}</button>`).join('')}</div>
+            ${S.votes.price ? `<p class="small" style="margin:12px 0 0;color:var(--brand)">Noted, thanks. You can change your pick.</p>` : ''}
+            <div class="acts" style="margin-top:14px"><button class="btn sm" data-act="fbOpen" data-topic="pricing" data-about="Pricing">${ic('msg')} Say more about pricing</button></div></div>`,
+      };
+      return `${phead('Workspace settings', 'Sign-in, roles, data handling and integrations for the whole company.')}
+        <div style="margin-bottom:18px;overflow-x:auto">${seg('setTab', [['access', 'Access'], ['answers', 'Answers'], ['privacy', 'Privacy'], ['apps', 'Integrations'], ['plan', 'Plan']], tab)}</div>
+        <div class="setview">${views[tab] || views.access}</div>`;
+    },
+  },
 };
 const optHTML = (k, x, cur) => `<button class="opt ${x === cur ? 'on' : ''}" data-act="pickModel" data-k="${k}" data-v="${x}"><span class="o"></span><span><b>${x}</b><small>${D.modelInfo[x][1]}</small></span><span class="badge">${D.modelInfo[x][0]}</span></button>`;
 
@@ -1495,13 +1614,18 @@ A.pickChunk = el => { tmp.chunk = tmp.chunk === +el.dataset.n ? null : +el.datas
 
 A.retryRow = async el => {
   const f = S.run.failures[+el.dataset.i];
+  if (!f) return;
   await busy(el, 1200);
-  if (f.retry === 'ok') { S.run.failures.splice(+el.dataset.i, 1); S.run.reindexed++; toast(`${f.doc} is in the index now.`); }
+  // Look the row up again: another row may have been skipped while this one was retrying.
+  const i = S.run.failures.indexOf(f);
+  if (i < 0) return;
+  if (f.retry === 'ok') { S.run.failures.splice(i, 1); S.run.reindexed++; toast(`${f.doc} is in the index now.`); }
   else { f.attempts++; toast(`Still failing: ${f.reason}`, null, 'alert'); }
-  save(); refresh();
+  save(); if (onPage('run')) refresh();
 };
 A.skipRow = el => {
   const i = +el.dataset.i, [f] = S.run.failures.splice(i, 1);
+  if (!f) return;
   S.run.skipped++;
   save(); refresh();
   toast(`Skipped ${f.doc}. It won't be retried.`, () => { S.run.failures.splice(i, 0, f); S.run.skipped--; save(); if (onPage('run')) refresh(); });
@@ -1512,7 +1636,7 @@ A.retryAll = async el => {
   S.run.failures = S.run.failures.filter(f => f.retry !== 'ok');
   S.run.failures.forEach(f => f.attempts++);
   S.run.reindexed += ok.length;
-  save(); refresh();
+  save(); if (onPage('run')) refresh();
   toast(`${ok.length} fixed, ${S.run.failures.length} still failing.`);
 };
 
@@ -1531,11 +1655,7 @@ A.exportCsv = () => {
   const rows = auditRows(), q = s => `"${String(s).replace(/"/g, '""')}"`;
   const csv = ['time,person,question,chunks_used,chunks_withheld,withheld_detail',
     ...rows.map(({ a }) => [a.time, a.person, a.q, a.used.length, a.withheld.length, a.withheld.map(w => `${w[0]} (${w[2]})`).join('; ')].map(q).join(','))].join('\n');
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  link.download = 'sambad-access-audit.csv';
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  download('sambad-access-audit.csv', csv, 'text/csv');
   toast(`Exported ${rows.length} rows to sambad-access-audit.csv`);
 };
 
@@ -1640,7 +1760,7 @@ A.spaceToggle = el => {
   refresh();
 };
 A.srcFreq = el => { slideSeg(el); tmp.freq = el.dataset.v; };
-async function connectSource(el) { await busy(el, 1300); tmp.connected = true; refresh(); toast(`Connected to ${tmp.type}`); }
+async function connectSource(el) { await busy(el, 1300); if (!onPage('newsource')) return; tmp.connected = true; refresh(); toast(`Connected to ${tmp.type}`); }
 A.srcConnect = el => connectSource(el);
 A.pickFiles = () => $('#fileIn')?.click();
 A.sampleFiles = () => { tmp.files.push(...D.sampleFiles); refresh(); };
@@ -1648,19 +1768,23 @@ A.fillSource = async () => {
   const taken = S.connectors.map(c => c.name);
   Object.assign(tmp, { type: Object.keys(D.sourceTypes).find(t => !taken.includes(t) && t !== 'Upload files') || 'Upload files', connected: false, files: [], spaces: null, step: 0 });
   refresh();
-  await sleep(350);
+  // Each pause is a chance for the visitor to leave the page, so stop if they did.
+  const here = () => onPage('newsource');
+  await sleep(350); if (!here()) return;
   tmp.step = 1; refresh();
-  await sleep(250);
+  await sleep(250); if (!here()) return;
   if (tmp.type === 'Upload files') A.sampleFiles();
   else { const b = $('[data-act=srcConnect]'); if (b) await connectSource(b); }
-  await sleep(450);
+  await sleep(450); if (!here()) return;
   tmp.step = 2; refresh();
-  await sleep(500);
+  await sleep(500); if (!here()) return;
   tmp.step = 3; refresh();
 };
 A.addSource = async el => {
   const up = tmp.type === 'Upload files';
+  if (!tmp.type) return;
   await busy(el, 900);
+  if (!onPage('newsource')) return;
   const picked = up ? 0 : (tmp.spaces ?? D.sourceTypes[tmp.type]).length;
   const c = { id: 'c' + Date.now(), name: up ? 'Uploaded files' : tmp.type, src: tmp.type, docs: 0, total: up ? tmp.files.length : picked * 68,
     status: 'indexing', synced: 'just now', freq: tmp.freq, progress: 0, beats: '' };
@@ -1713,19 +1837,133 @@ A.modelSave = async el => {
   toast('Model settings saved');
 };
 
+/* workspace settings actions */
+const planned = k => {
+  const [n, d] = D.planned[k];
+  return `<div class="setrow"><div class="grow"><b>${n} <span class="badge">Planned</span></b><small>${d}</small></div>
+    ${S.votes[k] ? `<button class="btn sm on">${ic('check')} Noted</button>` : `<button class="btn sm" data-act="vote" data-k="${k}">I'd need this</button>`}</div>`;
+};
+const SET_MSG = {
+  sso: on => on ? 'Single sign-on is now required' : 'Email and password sign-in is allowed again',
+  scim: on => on ? 'Automatic provisioning is on' : `Automatic provisioning is off. Add and remove people by hand.`,
+  strict: on => on ? 'Answers now need a source for every sentence' : 'Answers may include unsourced sentences',
+  redact: on => on ? 'Personal details are hidden in logs' : 'Personal details are shown in logs',
+  anonymize: on => on ? 'Analytics no longer show who asked' : 'Analytics show who asked again',
+};
+const SEG_NAME = { session: 'Sign people out after', retainQ: 'Keep questions for', retainAudit: 'Keep the access audit for' };
+A.setTab = el => { slideSeg(el); tmp.stab = el.dataset.v; tmp.newKey = null; setTimeout(() => onPage('settings') && refresh(), 200); };
+A.setToggle = el => {
+  const k = el.dataset.k, flip = () => { S.settings[k] = !S.settings[k]; save(); };
+  flip();
+  el.classList.toggle('on', S.settings[k]);
+  el.setAttribute('aria-checked', S.settings[k]);
+  toast(SET_MSG[k](S.settings[k]), () => { flip(); if (onPage('settings')) refresh(); });
+};
+A.setSeg = el => { const k = el.parentElement.dataset.k; slideSeg(el); S.settings[k] = el.dataset.v; save(); toast(`${SEG_NAME[k]}: ${el.dataset.v.toLowerCase()}`); };
+A.testSso = async el => { await busy(el, 1300); toast(`${S.settings.idp} answered. Sign-in works for ${S.session.email}.`); };
+const fieldErr = (id, m) => { const e = $('#' + id); if (e) e.innerHTML = m ? `<div class="err-line" style="margin-top:8px">${m}</div>` : ''; };
+F.domainAdd = f => {
+  const d = val(f, 'domain').toLowerCase().replace(/^@/, '');
+  if (!/^(?!-)[a-z0-9-]{1,63}(\.[a-z0-9-]{1,63})+$/.test(d)) return fieldErr('domErr', 'Enter a domain like example.com, without https or a path.');
+  if (S.settings.domains.includes(d)) return fieldErr('domErr', `${esc(d)} is already allowed.`);
+  if (S.settings.domains.length >= 10) return fieldErr('domErr', 'Up to 10 domains. Remove one first.');
+  S.settings.domains.push(d); save(); refresh(); toast(`People with @${d} emails can join now`);
+};
+A.domainDel = el => {
+  const d = el.dataset.d, i = S.settings.domains.indexOf(d);
+  if (i < 0) return;
+  S.settings.domains.splice(i, 1); save(); refresh();
+  toast(`Removed ${d}`, () => { if (!S.settings.domains.includes(d)) S.settings.domains.splice(i, 0, d); save(); if (onPage('settings')) refresh(); });
+};
+A.fillDomain = () => typeInto($('#domIn'), 'acme.io');
+F.adminAdd = async (f, btn) => {
+  const e = val(f, 'email').toLowerCase();
+  if (!isEmail(e)) return fieldErr('admErr', 'Enter a full work email.');
+  if (S.settings.admins.some(a => a[1] === e)) return fieldErr('admErr', 'That person is already an admin.');
+  if (S.settings.admins.length >= 20) return fieldErr('admErr', 'Up to 20 admins in the demo.');
+  await busy(btn, 700);
+  const name = e.split('@')[0].split(/[._-]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') || e;
+  S.settings.admins.push([name, e, 'Admin']); save();
+  if (onPage('settings')) refresh();
+  toast(`Invite sent to ${e}. They join as an admin.`);
+};
+A.fillAdmin = () => typeInto($('#admIn'), 'ravi@acme.com');
+A.roleMenu = el => {
+  const open = el.parentElement.querySelector('.menu');
+  if (open) return open.remove();
+  el.insertAdjacentHTML('afterend', `<div class="menu">${Object.keys(D.roles).filter(r => r !== 'Owner').map(r => `<button data-act="setRole" data-i="${el.dataset.i}" data-r="${r}">${ic('shield')} ${r}</button>`).join('')}</div>`);
+};
+A.setRole = el => { const a = S.settings.admins[+el.dataset.i]; if (!a) return; a[2] = el.dataset.r; save(); refresh(); toast(`${a[0]} is now ${/^[AEIOU]/.test(a[2]) ? 'an' : 'a'} ${a[2].toLowerCase()}`); };
+A.adminDel = el => {
+  const i = +el.dataset.i, a = S.settings.admins[i];
+  if (!a || a[2] === 'Owner') return;
+  S.settings.admins.splice(i, 1); save(); refresh();
+  toast(`${a[0]} is no longer an admin`, () => { S.settings.admins.splice(i, 0, a); save(); if (onPage('settings')) refresh(); });
+};
+I.asstName = el => { S.settings.assistant = el.value.trim().slice(0, 30) || 'Sambad'; save(); };
+A.routeMenu = el => {
+  const open = el.parentElement.querySelector('.menu');
+  if (open) return open.remove();
+  el.insertAdjacentHTML('afterend', `<div class="menu">${D.owners.map(o => `<button data-act="setRoute" data-t="${esc(el.dataset.t)}" data-o="${o}">${ic('users')} ${o}</button>`).join('')}</div>`);
+};
+A.setRoute = el => { S.settings.routes[el.dataset.t] = el.dataset.o; save(); refresh(); toast(`${el.dataset.t} questions now go to ${el.dataset.o}`); };
+A.vote = el => {
+  const k = el.dataset.k;
+  if (S.votes[k]) return;
+  if (!fbAdd({ kind: 'vote', target: D.planned[k][0] })) return;
+  S.votes[k] = true; save(); refresh();
+  toast('Noted. Requests like this decide what gets built next.');
+};
+A.priceBand = el => {
+  const b = el.dataset.b;
+  if (S.votes.price === b) return;
+  if (!fbAdd({ kind: 'price', target: 'Business plan, per person per month', message: b })) return;
+  S.votes.price = b; save(); refresh();
+  toast(`Noted: ${b} per person, per month`);
+};
+A.exportAll = async el => { await busy(el, 1200); toast("Export started. You'll get an email with a download link when it's ready."); };
+A.deleteWs = async () => {
+  if (!await confirmBox({ title: `Delete ${S.workspace}?`, body: 'Every index, log and setting is removed after 7 days. Your source systems are not touched. In this demo, nothing is actually deleted.', ok: 'Delete workspace', danger: true })) return;
+  toast('Demo: nothing was deleted. The real product would start a 7-day countdown.', null, 'info');
+};
+F.keyAdd = async (f, btn) => {
+  const name = val(f, 'name');
+  if (!name) return fieldErr('keyErr', 'Name the key so you know what to revoke later.');
+  if (S.settings.apiKeys.length >= 5) return fieldErr('keyErr', 'Up to 5 keys. Revoke one first.');
+  await busy(btn, 600);
+  const key = 'sk_sambad_' + [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+  S.settings.apiKeys.push({ name, last4: key.slice(-4), created: 'just now' }); save();
+  tmp.newKey = key;
+  if (onPage('settings')) refresh();
+};
+A.keyCopy = async () => { try { await navigator.clipboard.writeText(tmp.newKey); } catch { /* file:// */ } toast('Key copied'); };
+A.keyHide = () => { tmp.newKey = null; refresh(); };
+A.keyRevoke = async el => {
+  const k = S.settings.apiKeys[+el.dataset.i];
+  if (!k || !await confirmBox({ title: `Revoke "${k.name}"?`, body: 'Anything using this key stops working straight away.', ok: 'Revoke', danger: true })) return;
+  S.settings.apiKeys.splice(S.settings.apiKeys.indexOf(k), 1); save();
+  if (onPage('settings')) refresh();
+  toast(`Revoked ${k.name}`);
+};
+
 /* ════════════════ DEMO PANEL ════════════════ */
 const FLAGS = [['serviceDown', 'Answering service is down'], ['emptyWorkspace', 'Workspace has no documents'], ['slow', 'Slow network']];
 function paintDemo() {
+  const n = FB.entries.length, waiting = FB.entries.filter(e => e.status === 'queued').length;
   $('#demo').innerHTML = `<div class="demo" data-menu><h6>Demo controls</h6><p class="small muted" style="margin:0 0 8px">Force states you can't reach by clicking around.</p>
-    ${FLAGS.map(([k, l]) => `<div class="row"><span>${l}</span><button class="switch ${S.flags[k] ? 'on' : ''}" data-act="demoFlag" data-k="${k}" aria-label="${l}"></button></div>`).join('')}
+    ${FLAGS.map(([k, l]) => `<div class="row"><span>${l}</span><button class="switch ${S.flags[k] ? 'on' : ''}" data-act="demoFlag" data-k="${k}" role="switch" aria-checked="${S.flags[k]}" aria-label="${l}"></button></div>`).join('')}
     <div class="sep" style="margin:10px 0"></div><div class="label">Sign in as</div>
     <div class="row" style="padding-top:0"><button class="btn sm" data-act="demoUser" data-u="priya">Priya, employee</button><button class="btn sm" data-act="demoUser" data-u="suman">Suman, admin</button></div>
     <div class="label" style="margin-top:10px">Jump to</div>
     <div class="autos"><button class="auto" data-act="demoJump" data-to="#/signup">Sign up</button><button class="auto" data-act="demoJump" data-to="#/verify">Code</button>
       <button class="auto" data-act="demoJump" data-to="#/forgot">Forgot</button><button class="auto" data-act="demoJump" data-to="#/invite">Invite</button></div>
-    <div class="sep" style="margin:12px 0 10px"></div><button class="btn sm danger" data-act="demoReset">Reset demo</button></div>`;
+    <div class="sep" style="margin:12px 0 10px"></div>
+    <div class="row"><span>Feedback on this device<small class="muted" style="display:block">${n ? `${n} saved${FBC.endpoint ? `, ${waiting} waiting to send` : ''}` : 'Nothing yet'}</small></span><button class="btn sm" data-act="fbInbox">Review</button></div>
+    <div class="sep" style="margin:10px 0"></div>
+    <div class="row"><button class="btn sm danger" data-act="nextVisitor">Start fresh for the next person</button></div>
+    <p class="small muted" style="margin:6px 0 0">Keeps the feedback. Demo build ${BUILD}.</p></div>`;
 }
-A.demo = () => { if ($('#demo').innerHTML) $('#demo').innerHTML = ''; else paintDemo(); };
+A.demo = () => { if ($('#demo').innerHTML) $('#demo').innerHTML = ''; else { closeFb(); paintDemo(); } };
 A.demoFlag = el => {
   const k = el.dataset.k;
   S.flags[k] = !S.flags[k];
@@ -1742,17 +1980,308 @@ A.demoJump = el => {
   save();
   go(el.dataset.to);
 };
-A.demoReset = async () => {
-  if (!await confirmBox({ title: 'Reset the demo?', body: 'Clears every question, setting and account you created and signs you out.', ok: 'Reset', danger: true })) return;
+// Clears the demo for the next visitor at an event. Feedback lives under its own key, so it survives.
+A.nextVisitor = A.demoReset = async () => {
+  if (!await confirmBox({ title: 'Start fresh for the next person?', body: 'Signs out and clears every question, setting and account made in this demo. Feedback collected on this device is kept.', ok: 'Start fresh' })) return;
   try { localStorage.removeItem(KEY); } catch { /* nothing stored */ }
   location.hash = '';
   location.reload();
 };
 
+/* ════════════════ DEMO FRAME AND FEEDBACK ════════════════ */
+const BUILD = '0.3, November 2026';
+const FBC = window.SAMBAD_FEEDBACK || {};
+const FB_KEY = 'sambad-feedback-v1';
+const FB_LIMITS = { cooldownMs: 10000, perDay: 60, keep: 500, message: 2000, minFillMs: 1200 };
+const TOPICS = [['confusing', 'Something is confusing'], ['missing', 'Something is missing'], ['idea', 'Idea'], ['bug', 'Bug'], ['pricing', 'Pricing'], ['like', 'I like this']];
+const ROLES = ['Employee', 'IT or security', 'Knowledge or operations', 'Leadership', 'Developer', 'Other'];
+const SIZES = ['1 to 50', '51 to 500', '501 to 5,000', 'Over 5,000'];
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).toLowerCase();
+let FB;
+try { FB = JSON.parse(localStorage.getItem(FB_KEY)); } catch { FB = null; }
+if (!FB || !Array.isArray(FB.entries) || typeof FB.device !== 'string') FB = { device: newId(), entries: [] };
+const fbSave = () => { try { localStorage.setItem(FB_KEY, JSON.stringify(FB)); } catch { /* private mode: kept for this tab only */ } };
+const norm = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const SCREENS = { login: 'Sign in', sso: 'Single sign-on', signup: 'Create a workspace', forgot: 'Forgot password', verify: 'Email code', reset: 'New password', invite: 'Accept an invite' };
+function screenName() {
+  const [a, b] = parse().parts;
+  if (a === 'admin') { const sub = ctx.page?.crumb?.(); return `${sub ? sub[1] : ctx.navTitle || 'Overview'} (admin)`; }
+  if (a === 'ask') return b ? 'An answer' : 'The ask screen';
+  return SCREENS[a] || 'Start';
+}
+
+// Every entry gets the same context, is saved on the device first, then queued for sending.
+function fbAdd(fields) {
+  const today = FB.entries.filter(e => Date.now() - Date.parse(e.created_at) < 864e5).length;
+  if (today >= FB_LIMITS.perDay) { toast("That's the feedback limit for this device today. Thank you for so much of it.", null, 'info'); return null; }
+  const e = { id: newId(), created_at: new Date().toISOString(), screen: screenName(), route: location.hash.slice(0, 200) || '#/',
+    demo_role: S.session?.role || 'signed out', status: FBC.endpoint ? 'queued' : 'local', ...fields };
+  FB.entries.push(e);
+  if (FB.entries.length > FB_LIMITS.keep) FB.entries = FB.entries.slice(-FB_LIMITS.keep);
+  fbSave();
+  setTimeout(flush, 300);
+  return e;
+}
+
+/* the top bar and the first-visit intro */
+function paintBar() {
+  $('#demobar').innerHTML = `<span class="pill">Demo</span><span class="grow"><span class="hide-m">An interactive demo with made-up data. Sambad is still being built, so tell us what's missing or wrong.</span><span class="show-m">Made-up data</span></span>
+    <button class="lnk" data-act="intro">About<span class="hide-m"> this demo</span></button><button class="fbb" data-act="fbOpen" data-menu>${ic('msg')} Give feedback</button>`;
+}
+A.intro = () => {
+  closeFb();
+  $('#overlay').innerHTML = `<div class="scrim"><div class="modal intro" role="dialog" aria-modal="true" aria-labelledby="introT">${MARK}
+    <h2 id="introT">Welcome to the Sambad demo</h2>
+    <p class="lede">Sambad answers questions from your company's own documents. People only see what they're already allowed to open, and it runs on your own servers.</p>
+    <ul class="pts">
+      <li>${ic('layers')}<div><b>Everything here is made up.</b>Acme, its people and its documents are sample data. Nothing you type leaves this page unless you send it as feedback.</div></li>
+      <li>${ic('gear')}<div><b>It's a work in progress.</b>Sambad is being built in the open. Some parts are rough, and a lot can still change based on what you tell us.</div></li>
+      <li>${ic('msg')}<div><b>Tell us what you think, any time.</b>Use Give feedback at the top. You can point at anything on screen and say what you'd change.</div></li>
+    </ul>
+    <div class="intro-acts"><button class="btn pri lg" data-act="introGo" data-u="priya">Try it as an employee</button><button class="btn lg" data-act="introGo" data-u="suman">Try it as an admin</button></div>
+    <button class="link small" data-act="introClose">Look around on my own</button></div></div>`;
+  $('.intro .btn')?.focus();
+};
+A.introClose = () => { S.introSeen = true; save(); $('#overlay').innerHTML = ''; };
+A.introGo = el => { A.introClose(); signIn(D.users[el.dataset.u], `Signed in as ${D.users[el.dataset.u].name}. Explore freely, nothing here is real.`); };
+
+/* the feedback panel */
+const blankFb = keep => ({ open: false, view: 'form', rating: null, topics: [], message: '', target: '', more: false, role: '', size: '', contact: '', openedAt: Date.now(), ...keep });
+let fbs = blankFb();
+const fbWhere = () => FBC.endpoint ? 'Goes to the Sambad team. Please leave out anything confidential.' : 'Saved on this device for the Sambad team. Please leave out anything confidential.';
+function paintFb() {
+  const p = $('#fbp');
+  if (!fbs.open) { p.innerHTML = ''; return; }
+  if (fbs.view === 'done') {
+    const sending = FBC.endpoint && location.protocol !== 'file:';
+    p.innerHTML = `<div class="fbp" role="dialog" aria-label="Feedback sent" data-menu><div class="fbp-h"><b>Feedback</b><button class="btn ghost sm icon" data-act="fbClose" aria-label="Close">${ic('x')}</button></div>
+      <div class="fbp-b center"><div class="success-ico">${ic('check')}</div><h3 class="fbp-t">Thanks, that's saved.</h3>
+        <p class="mid small" style="margin:0 auto 18px;max-width:32ch">${sending ? (navigator.onLine ? 'It is on its way to the team.' : "You're offline, so it will be sent once there's a connection.") : 'It stays on this device until the team collects it.'}</p>
+        <div class="col-acts"><button class="btn" data-act="fbAgain">Add something else</button><button class="btn ghost" data-act="fbClose">Back to the demo</button></div>
+        <div class="sep"></div><p class="small muted" style="margin:0 0 8px">Handing this device to someone else?</p><button class="btn sm" data-act="nextVisitor">Start fresh for the next person</button></div></div>`;
+    return;
+  }
+  const chips = (act, list, cur, multi) => list.map(([v, l]) => { const on = multi ? cur.includes(v) : cur === v; return `<button class="chip ${on ? 'on' : ''}" data-act="${act}" data-v="${esc(v)}" aria-pressed="${on}">${on ? ic('check') : ''}${esc(l)}</button>`; }).join('');
+  p.innerHTML = `<div class="fbp" role="dialog" aria-label="Share feedback" data-menu>
+    <div class="fbp-h"><b>Share feedback</b><button class="btn ghost sm icon" data-act="fbClose" aria-label="Close, your draft is kept">${ic('x')}</button></div>
+    <div class="fbp-b">
+      <div class="about">${ic('target')}<span class="grow">About <b>${esc(fbs.target || screenName())}</b></span>
+        ${fbs.target ? `<button class="btn ghost sm" data-act="fbUnpin">Clear</button>` : ''}<button class="btn sm" data-act="fbPoint">Point at it</button></div>
+      <div class="label">How useful would Sambad be at your work?</div>
+      <div class="rate" role="group" aria-label="Usefulness from 1 to 5">${[1, 2, 3, 4, 5].map(n => `<button class="${fbs.rating === n ? 'on' : ''}" data-act="fbRate" data-n="${n}" aria-pressed="${fbs.rating === n}">${n}</button>`).join('')}</div>
+      <div class="rate-l"><span>Not at all</span><span>Very</span></div>
+      <div class="label" style="margin-top:14px">What's it about?</div>
+      <div class="chipset">${chips('fbTopic', TOPICS, fbs.topics, true)}</div>
+      <textarea class="in" id="fbMsg" data-in="fbMsg" maxlength="${FB_LIMITS.message}" rows="4" placeholder="What did you expect? What's missing? What would make this worth paying for?">${esc(fbs.message)}</textarea>
+      <div class="fbp-count small muted"><span id="fbCount">${fbs.message.length}</span> of ${FB_LIMITS.message}</div>
+      <input class="hp" id="fbHp" tabindex="-1" autocomplete="off" aria-hidden="true" placeholder="Leave this empty">
+      <button class="more ${fbs.more ? 'open' : ''}" data-act="fbMore" aria-expanded="${fbs.more}">About you, optional ${ic('chev')}</button>
+      <div ${fbs.more ? '' : 'hidden'}>
+        <div class="label">Your role</div><div class="chipset">${chips('fbRole', ROLES.map(r => [r, r]), fbs.role)}</div>
+        <div class="label" style="margin-top:12px">People at your company</div><div class="chipset">${chips('fbSize', SIZES.map(r => [r, r]), fbs.size)}</div>
+        <div class="label" style="margin-top:12px">Email, only if you'd like a reply</div><input class="in" type="email" id="fbContact" data-in="fbContact" maxlength="200" value="${esc(fbs.contact)}" placeholder="you@company.com" autocomplete="email">
+      </div>
+      <div id="fbErr"></div>
+    </div>
+    <div class="fbp-f"><span class="small muted">${fbWhere()}</span><button class="btn pri" data-act="fbSend">Send feedback</button></div></div>`;
+}
+function openFb(about = {}) {
+  $('#demo').innerHTML = '';
+  const wasOpen = fbs.open;
+  fbs.open = true;
+  if (fbs.view === 'done') fbs = blankFb({ open: true, more: fbs.more, role: fbs.role, size: fbs.size, contact: fbs.contact });
+  if (!wasOpen) fbs.openedAt = Date.now();
+  if (about.topic && !fbs.topics.includes(about.topic)) fbs.topics.push(about.topic);
+  if (about.target) fbs.target = about.target;
+  paintFb();
+  $('#fbMsg')?.focus({ preventScroll: true });
+}
+const closeFb = () => { fbs.open = false; endPoint(); paintFb(); };
+A.fbOpen = el => { if (fbs.open && !el.dataset.topic) return closeFb(); openFb({ topic: el.dataset.topic, target: el.dataset.about }); };
+A.fbClose = () => closeFb();
+A.fbAgain = () => { fbs = blankFb({ open: true, more: fbs.more, role: fbs.role, size: fbs.size, contact: fbs.contact }); paintFb(); };
+A.fbRate = el => { const n = +el.dataset.n; fbs.rating = fbs.rating === n ? null : n; paintFb(); };
+A.fbTopic = el => { const v = el.dataset.v; fbs.topics = fbs.topics.includes(v) ? fbs.topics.filter(x => x !== v) : [...fbs.topics, v]; paintFb(); };
+A.fbRole = el => { fbs.role = fbs.role === el.dataset.v ? '' : el.dataset.v; paintFb(); };
+A.fbSize = el => { fbs.size = fbs.size === el.dataset.v ? '' : el.dataset.v; paintFb(); };
+A.fbMore = () => { fbs.more = !fbs.more; paintFb(); };
+A.fbUnpin = () => { fbs.target = ''; paintFb(); };
+I.fbMsg = el => { fbs.message = el.value.slice(0, FB_LIMITS.message); $('#fbCount').textContent = fbs.message.length; };
+I.fbContact = el => { fbs.contact = el.value.slice(0, 200); };
+A.fbSend = async el => {
+  const err = m => { $('#fbErr').innerHTML = `<div class="err-line" style="margin-top:10px">${m}</div>`; };
+  const msg = fbs.message.trim(), contact = fbs.contact.trim();
+  // A filled hidden field means a bot. Look successful and store nothing.
+  if ($('#fbHp')?.value) { fbs = blankFb({ open: true, view: 'done' }); return paintFb(); }
+  if (!msg && !fbs.rating && !fbs.topics.length) return err('Pick a score or a topic, or write a note.');
+  if (contact && !isEmail(contact)) return err("That email looks incomplete. Leave it empty if you don't want a reply.");
+  const last = FB.entries.filter(e => e.kind === 'feedback').at(-1);
+  if (last && Date.now() - Date.parse(last.created_at) < FB_LIMITS.cooldownMs) return err('Give it a few seconds before sending more.');
+  if (msg && FB.entries.some(e => e.kind === 'feedback' && norm(e.message) === norm(msg))) return err("That exact note has already been sent from this device.");
+  await busy(el, 450);
+  const elapsed = Date.now() - fbs.openedAt;
+  if (elapsed < FB_LIMITS.minFillMs) return err('That was quick. Take a second, then send again.');
+  const e = fbAdd({ kind: 'feedback', rating: fbs.rating, topics: [...fbs.topics], message: msg, target: fbs.target, role: fbs.role, company_size: fbs.size, contact, elapsed_ms: elapsed });
+  if (!e) return;
+  fbs = blankFb({ open: true, view: 'done', more: fbs.more, role: fbs.role, size: fbs.size, contact: fbs.contact });
+  paintFb();
+};
+A.fbQuestion = el => {
+  const { u } = findTurn(el.dataset.turn);
+  if (!u || u.qSent) return;
+  if (!fbAdd({ kind: 'question', message: u.q.slice(0, FB_LIMITS.message) })) return;
+  u.qSent = true; save(); refreshBody(u.id);
+  toast('Sent. Thanks, that tells us what people expect Sambad to know.');
+};
+
+/* point at it: pick any element on screen to attach to the feedback */
+let pointing = false;
+const SKIP_POINT = '#fbp,#pointHint,#pointBox,.demo-bar,.fb-fab,.demo-fab,#demo,#toasts';
+const pointTarget = t => {
+  if (!(t instanceof Element) || t.closest(SKIP_POINT)) return null;
+  return t.closest('button,a,input,textarea,h1,h2,h3,.metric,.tile,.gap,.listrow,.prose,.tmc,circle,.chunk,.ice,.opt,.setrow,.arow,.plan,.panel,.turn') || t;
+};
+function describe(el) {
+  const raw = el.getAttribute('aria-label') || (el.dataset?.tip || '').replace(/<[^>]+>/g, ' ') || el.getAttribute('placeholder') || el.innerText || el.textContent || '';
+  const t = raw.replace(/\s+/g, ' ').trim();
+  return t ? `"${t.length > 70 ? t.slice(0, 68).trim() + '…' : t}"` : `a ${el.tagName.toLowerCase()} element`;
+}
+function pointMove(e) {
+  const el = pointTarget(e.target), box = $('#pointBox');
+  if (!el || !box) { box?.classList.remove('on'); return; }
+  const r = el.getBoundingClientRect();
+  Object.assign(box.style, { left: r.left - 4 + 'px', top: r.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px' });
+  box.classList.add('on');
+}
+function pointClick(e) {
+  const el = pointTarget(e.target);
+  if (!el) return;
+  e.preventDefault(); e.stopPropagation();
+  fbs.target = `${describe(el)} on ${screenName()}`.slice(0, 200);
+  endPoint();
+  openFb();
+}
+// Pointer events are swallowed while pointing so the click picks, rather than presses, the element.
+const swallow = e => { if (pointTarget(e.target)) { e.preventDefault(); e.stopPropagation(); } };
+A.fbPoint = () => {
+  pointing = true;
+  $('#fbp').innerHTML = '';
+  document.body.classList.add('pointing');
+  document.body.insertAdjacentHTML('beforeend', `<div id="pointBox"></div><div id="pointHint" role="status">${ic('target')} Click the part of the screen you mean. <button data-act="pointCancel">Cancel</button></div>`);
+  addEventListener('mousemove', pointMove, true);
+  addEventListener('click', pointClick, true);
+  ['mousedown', 'pointerdown', 'submit'].forEach(t => addEventListener(t, swallow, true));
+};
+function endPoint() {
+  if (!pointing) return;
+  pointing = false;
+  document.body.classList.remove('pointing');
+  $('#pointBox')?.remove(); $('#pointHint')?.remove();
+  removeEventListener('mousemove', pointMove, true);
+  removeEventListener('click', pointClick, true);
+  ['mousedown', 'pointerdown', 'submit'].forEach(t => removeEventListener(t, swallow, true));
+}
+A.pointCancel = () => { endPoint(); openFb(); };
+
+/* sending: batches of up to 10, with a Turnstile token, retried until the Worker answers */
+let flushing = false, nextTry = 0, tsWidget = null, tsWait = null;
+const WIRE = ['id', 'kind', 'rating', 'topics', 'message', 'screen', 'route', 'target', 'role', 'company_size', 'contact', 'demo_role', 'created_at', 'elapsed_ms'];
+const wire = e => Object.fromEntries(WIRE.filter(k => e[k] != null && e[k] !== '').map(k => [k, e[k]]));
+function loadTurnstile() {
+  if (window.turnstile) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true; s.onload = res; s.onerror = () => rej(new Error('Turnstile did not load'));
+    document.head.append(s);
+  });
+}
+// One invisible widget, reused. Cloudflare shows a checkbox only if it isn't sure the visitor is a person.
+async function turnstileToken() {
+  await loadTurnstile();
+  const box = $('#tsbox');
+  return new Promise((res, rej) => {
+    const timer = setTimeout(() => { tsWait = null; box.classList.remove('on'); rej(new Error('Human check timed out')); }, 90000);
+    tsWait = { res: t => { clearTimeout(timer); res(t); }, rej: e => { clearTimeout(timer); rej(e); } };
+    if (tsWidget === null) {
+      tsWidget = turnstile.render('#tsslot', { sitekey: FBC.turnstileSiteKey, appearance: 'interaction-only', execution: 'execute',
+        callback: t => { box.classList.remove('on'); tsWait?.res(t); tsWait = null; },
+        'error-callback': () => { box.classList.remove('on'); tsWait?.rej(new Error('Human check failed')); tsWait = null; return true; },
+        'before-interactive-callback': () => box.classList.add('on') });
+    } else turnstile.reset(tsWidget);
+    turnstile.execute(tsWidget);
+  });
+}
+async function flush(force) {
+  if (!FBC.endpoint || location.protocol === 'file:' || flushing || !navigator.onLine || (force !== true && Date.now() < nextTry)) return;
+  const batch = FB.entries.filter(e => e.status === 'queued').slice(0, 10);
+  if (!batch.length) return;
+  flushing = true;
+  try {
+    const token = FBC.turnstileSiteKey ? await turnstileToken() : '';
+    const r = await fetch(FBC.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device: FB.device, token, items: batch.map(wire) }) });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) { nextTry = Date.now() + (r.status === 429 ? (+res.retry_after || 600) : 60) * 1000; return; }
+    const byId = id => FB.entries.find(e => e.id === id);
+    (res.accepted || []).forEach(id => { const e = byId(id); if (e) e.status = 'sent'; });
+    (res.dropped || []).forEach(d => { const e = byId(d.id); if (e) { e.status = 'rejected'; e.reason = d.reason; } });
+    fbSave();
+    if (FB.entries.some(e => e.status === 'queued')) setTimeout(() => flush(true), 1500);
+  } catch (err) {
+    console.warn('Feedback is saved on this device and will be sent later.', err);
+    nextTry = Date.now() + 60000;
+  } finally { flushing = false; }
+}
+
+/* the presenter's inbox: everything collected on this device */
+const STATUS = { sent: ['ok', 'Sent'], queued: ['warn', 'Waiting to send'], local: ['', 'On this device'], rejected: ['bad', 'Not accepted'] };
+A.fbInbox = () => {
+  $('#demo').innerHTML = '';
+  const list = FB.entries.slice().reverse(), c = k => FB.entries.filter(e => e.status === k).length;
+  const topicName = t => TOPICS.find(x => x[0] === t)?.[1] || t;
+  $('#overlay').innerHTML = `<div class="scrim" data-act="inboxClose"><div class="modal inbox" role="dialog" aria-modal="true" aria-labelledby="inboxT">
+    <div class="row"><h3 id="inboxT" class="grow">Feedback on this device</h3><button class="btn ghost sm icon" data-act="inboxClose" aria-label="Close">${ic('x')}</button></div>
+    <p>${list.length ? `${list.length} entr${list.length === 1 ? 'y' : 'ies'}. ${FBC.endpoint ? `${c('sent')} sent, ${c('queued')} waiting to send.` : 'No endpoint is set in config.js, so everything stays here until you export it.'}` : 'Nothing collected yet.'}</p>
+    <div class="ilist">${list.map(e => { const [cls, lbl] = STATUS[e.status] || STATUS.local; return `<div class="ient">
+      <div class="row small"><b>${esc({ feedback: 'Feedback', vote: 'Feature vote', question: 'Question tried', price: 'Price pick' }[e.kind] || e.kind)}</b>${e.rating ? `<span class="badge brand">${e.rating} of 5</span>` : ''}
+        <span class="muted grow">${new Date(e.created_at).toLocaleString()}</span><span class="badge ${cls}" ${e.reason ? `data-tip="${esc(e.reason)}"` : ''}>${lbl}</span></div>
+      ${e.message ? `<p class="imsg">${esc(e.message)}</p>` : ''}
+      <div class="small muted">${[e.target || e.screen, (e.topics || []).map(topicName).join(', '), e.role, e.company_size, e.contact].filter(Boolean).map(esc).join('<br>')}</div></div>`; }).join('')}</div>
+    <div class="acts" style="flex-wrap:wrap"><button class="btn sm danger" data-act="fbClear" ${list.length ? '' : 'disabled'}>Delete all</button><span class="grow"></span>
+      ${FBC.endpoint && c('queued') ? `<button class="btn sm" data-act="fbSendNow">${ic('refresh')} Send now</button>` : ''}
+      <button class="btn sm" data-act="fbExport" data-f="json" ${list.length ? '' : 'disabled'}>${ic('download')} JSON</button><button class="btn sm pri" data-act="fbExport" data-f="csv" ${list.length ? '' : 'disabled'}>${ic('download')} CSV</button></div></div></div>`;
+};
+A.inboxClose = (el, e) => { if (el.classList.contains('scrim') && e.target !== el) return; $('#overlay').innerHTML = ''; };
+function download(name, text, type) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type }));
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+A.fbExport = el => {
+  const day = new Date().toISOString().slice(0, 10), cols = ['created_at', 'status', ...WIRE.filter(k => !['id', 'created_at', 'elapsed_ms'].includes(k)), 'id'];
+  const q = v => `"${String(Array.isArray(v) ? v.join('; ') : v ?? '').replace(/"/g, '""')}"`;
+  if (el.dataset.f === 'json') download(`sambad-feedback-${day}.json`, JSON.stringify(FB.entries, null, 2), 'application/json');
+  else download(`sambad-feedback-${day}.csv`, [cols.join(','), ...FB.entries.map(e => cols.map(k => q(e[k])).join(','))].join('\n'), 'text/csv');
+  toast(`Exported ${FB.entries.length} entries`);
+};
+A.fbSendNow = async el => { await busy(el, 300); await flush(true); A.fbInbox(); };
+A.fbClear = async () => {
+  const unsent = FB.entries.filter(e => e.status !== 'sent').length;
+  if (!await confirmBox({ title: 'Delete all feedback on this device?', body: unsent ? `<b>${unsent} entr${unsent === 1 ? 'y has' : 'ies have'} not reached the team.</b> Export them first if you want to keep them.` : 'Everything here has already reached the team.', ok: 'Delete all', danger: true })) return A.fbInbox();
+  FB.entries = []; fbSave(); A.fbInbox(); toast('Feedback on this device deleted');
+};
+
 /* ── boot ─────────────────────────────────────── */
+paintBar();
 S.connectors.forEach(c => { if (c.status === 'indexing' || c.status === 'syncing') tickConn(c); });
 let resizeT;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (location.hash.startsWith('#/admin') && ctx.page?.mount) ctx.page.mount(true); }, 200); });
+addEventListener('online', () => flush(true));
+setInterval(flush, 60000);
+setTimeout(flush, 2500);
 window.addEventListener('hashchange', render);
 render();
+if (!S.introSeen) A.intro();
 })();

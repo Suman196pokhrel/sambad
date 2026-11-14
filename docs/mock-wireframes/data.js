@@ -318,4 +318,36 @@ window.DATA = {
     'nomic-embed-text': ['137M', 'Handles very long documents well.'],
   };
   D.sourceBlurb = { Confluence: 'Spaces and pages', 'Google Drive': 'Docs, Sheets and PDFs', Notion: 'Workspaces and pages', SharePoint: 'Sites and libraries', 'Upload files': 'PDF, Word, Markdown' };
+
+  // Workspace settings: the controls a company's IT and security teams expect before rollout.
+  D.settings = {
+    idp: 'Okta', sso: true, scim: true, session: '24 hours', domains: ['acme.com', 'acme.co.uk'],
+    admins: [['Suman Pokhrel', 'suman@acme.com', 'Owner'], ['Lena Martin', 'lena@acme.com', 'Auditor'], ['Tom Baker', 'tom@acme.com', 'Knowledge manager']],
+    retainQ: '90 days', retainAudit: '3 years', redact: true, anonymize: false,
+    assistant: 'Sambad', strict: true,
+    routes: { 'People and HR': 'People Ops', 'IT and devices': 'IT', 'Money and expenses': 'Finance', 'Security and access': 'Security' },
+    apiKeys: [],
+  };
+  D.roles = {
+    Owner: 'Everything, including billing and deleting the workspace.',
+    Admin: 'Sources, people, model and settings.',
+    Auditor: 'Read-only access audit and inspector. Cannot change anything.',
+    'Knowledge manager': 'Knowledge gaps and freshness. No access to permissions.',
+  };
+  // Not built yet. Visitors vote, and each vote lands in the feedback store.
+  D.planned = {
+    slack: ['Ask from Slack', 'Mention @Sambad in any channel and get a cited answer in the thread.'],
+    teams: ['Ask from Microsoft Teams', 'The same answers inside Teams chats and channels.'],
+    siem: ['Stream the audit log to your SIEM', 'Send every access decision to Splunk, Sentinel or Elastic as it happens.'],
+    languages: ['Answers in more languages', 'Ask in Nepali, Hindi, Spanish or German, and get answers from English documents.'],
+    extension: ['Browser extension', 'Ask about the page you are reading, with the same permissions.'],
+    connectorsApi: ['Build your own connector', 'A documented API for in-house systems, with permissions mapped the same way.'],
+  };
+  // Draft plans, shown so visitors can react to pricing. Nothing here is final.
+  D.plans = [
+    ['Community', 'Free', 'For personal and non-commercial use. Self-hosted, with every core feature: permission-aware answers, freshness and the access audit.'],
+    ['Business', 'Per person, per month', 'Licensed for commercial use. Adds single sign-on, automatic user provisioning, audit export and email support.'],
+    ['Enterprise', 'Custom', 'Air-gapped installs, an uptime commitment, priority support and help connecting in-house systems.'],
+  ];
+  D.priceBands = ['Under $5', '$5 to $10', '$10 to $20', '$20 to $30', 'Over $30'];
 })();

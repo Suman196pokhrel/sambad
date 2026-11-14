@@ -4,7 +4,7 @@
  * the logo teal and four tints of it for data. Type: Instrument Sans for the
  * interface, Newsreader for answer prose so answers read like documents.
  * Sections: tokens, primitives, overlays, auth, employee app, admin app,
- * charts, motion, mobile.
+ * charts, demo frame and feedback, motion, mobile.
  */
 
 /* ── tokens ─────────────────────────────────────── */
@@ -27,7 +27,9 @@
   --hatch-warn:repeating-linear-gradient(135deg,var(--warn-bg) 0 4px,#f1e6c0 4px 8px);
 }
 *{box-sizing:border-box}
-html,body,#app{height:100%}
+html,body{height:100%}
+body{display:flex;flex-direction:column}
+#app{flex:1;min-height:0;overflow:auto}
 body{margin:0;font:14px/1.5 var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;font-feature-settings:"ss01"}
 a{color:inherit}
 button{font:inherit;color:inherit}
@@ -338,6 +340,7 @@ tr.click:hover td{background:#fbfbfc}
 /* a question and its answer */
 .turn{padding-bottom:30px;margin-bottom:30px;border-bottom:1px solid var(--soft)}
 .turn:last-child{border-bottom:0}
+.ask,.prose,.nc p,.gap q,.folded span,.toast span,.hc q{overflow-wrap:anywhere}
 .ask{font-size:23px;font-weight:600;letter-spacing:-.02em;line-height:1.3;margin:0 0 16px;animation:rise .35s var(--ease)}
 .status{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--mid);height:30px}
 .status .ok{width:16px;height:16px;border-radius:50%;background:var(--b50);color:var(--brand);display:flex;align-items:center;justify-content:center}
@@ -402,7 +405,7 @@ tr.click:hover td{background:#fbfbfc}
 .tools .grow{flex:1}
 .fb{margin-top:12px;border-radius:14px;padding:14px;background:var(--fill);animation:rise .25s var(--ease)}
 .fb b{display:block;font-size:13.5px;margin-bottom:8px}
-.fb .chipset{display:flex;gap:6px;flex-wrap:wrap}
+.chipset{display:flex;gap:6px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:7px;height:32px;border:1px solid var(--line);border-radius:999px;padding:0 13px;font-size:13px;color:var(--ink2);
       background:var(--white);cursor:pointer;transition:background .15s,border-color .15s,color .15s,transform .15s var(--ease)}
 .chip:hover{border-color:#cfcfd6;transform:translateY(-1px)}
@@ -695,6 +698,93 @@ tr.click:hover td{background:#fbfbfc}
 .scatter circle:hover{r:8}
 .scatter .lab{font-size:11.5px;fill:var(--ink2);pointer-events:none}
 
+/* ── demo frame and feedback ───────────────────── */
+.demo-bar{flex:0 0 auto;display:flex;align-items:center;gap:12px;min-height:36px;padding:5px 10px 5px 14px;background:var(--ink);color:#d9d9de;font-size:12.5px;z-index:120}
+.demo-bar .pill{flex:0 0 auto;font-weight:650;color:var(--ink);background:var(--b200);border-radius:999px;padding:1px 9px;font-size:11.5px}
+.demo-bar .grow{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.demo-bar .lnk{border:0;background:none;color:#d9d9de;font:inherit;cursor:pointer;padding:4px 6px;border-radius:6px;white-space:nowrap}
+.demo-bar .lnk:hover{color:#fff;background:rgba(255,255,255,.08)}
+.demo-bar .fbb{display:inline-flex;align-items:center;gap:6px;border:0;background:#fff;color:var(--ink);font:600 12.5px var(--sans);height:26px;padding:0 11px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:transform .12s var(--ease)}
+.demo-bar .fbb:hover{background:var(--b50)}
+.demo-bar .fbb:active{transform:scale(.96)}
+.demo-bar .fbb .svg{width:14px;height:14px}
+.show-m{display:none}
+.demo-note{display:flex;gap:11px;border-radius:12px;padding:13px 15px;font-size:13.5px;color:var(--mid);background:var(--fill);box-shadow:inset 0 0 0 1px var(--line);margin-top:14px;animation:rise .3s var(--ease)}
+.demo-note>.svg{color:var(--ink2);margin-top:2px}
+.demo-note b{display:block;color:var(--ink);font-weight:600}
+.demo-note .acts{margin-top:10px}
+
+.fbp{position:fixed;top:48px;right:12px;bottom:12px;width:390px;max-width:calc(100% - 24px);z-index:145;background:var(--white);border-radius:18px;box-shadow:var(--sh3);
+     display:flex;flex-direction:column;animation:fbin .32s var(--ease);max-height:760px}
+.fbp-h{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 18px}
+.fbp-h b{font-size:15px;font-weight:650}
+.fbp-b{flex:1;overflow-y:auto;padding:4px 18px 16px;overscroll-behavior:contain}
+.fbp-f{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--soft)}
+.fbp-f span{flex:1;line-height:1.35}
+.fbp-t{margin:0 0 4px;font:400 22px/1.3 var(--serif)}
+.fbp .about{display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;color:var(--mid);margin-bottom:16px}
+.fbp .about b{color:var(--ink);font-weight:580;overflow-wrap:anywhere}
+.fbp .about>.svg{color:var(--brand)}
+.rate{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.rate button{height:40px;border:1px solid var(--line);border-radius:10px;background:var(--white);font-weight:600;cursor:pointer;transition:.15s;font-variant-numeric:tabular-nums}
+.rate button:hover{border-color:var(--brand);transform:translateY(-1px)}
+.rate button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.rate-l{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:5px}
+.fbp textarea{margin-top:14px;height:auto;min-height:96px;padding:10px 12px;resize:vertical;line-height:1.5}
+.fbp-count{text-align:right;margin-top:4px}
+.hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
+.more{display:flex;align-items:center;gap:6px;border:0;background:none;padding:6px 0;margin:4px 0 8px;font-size:13px;font-weight:550;color:var(--mid);cursor:pointer}
+.more .svg{transition:transform .2s var(--ease)}
+.more.open .svg{transform:rotate(180deg)}
+.col-acts{display:flex;flex-direction:column;gap:8px;max-width:260px;margin:0 auto}
+.fbp .chip{height:30px;font-size:12.5px;padding:0 11px}
+body.pointing,body.pointing *{cursor:crosshair!important}
+#pointBox{position:fixed;z-index:190;pointer-events:none;border-radius:10px;box-shadow:0 0 0 2px var(--brand),0 0 0 6px rgba(18,86,74,.14);opacity:0;transition:all .12s var(--ease)}
+#pointBox.on{opacity:1}
+#pointHint{position:fixed;z-index:195;top:46px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:12px;padding:8px 8px 8px 14px;font-size:13.5px;box-shadow:var(--sh3);animation:toastin .3s var(--spring);white-space:nowrap}
+#pointHint .svg{color:var(--b200)}
+#pointHint button{border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:7px;padding:4px 10px;font-size:12.5px;cursor:pointer!important}
+#tsbox{position:fixed;left:12px;bottom:12px;z-index:196;background:var(--white);border-radius:14px;box-shadow:var(--sh3);padding:12px;display:none}
+#tsbox.on{display:block}
+#tsbox p{margin:0 0 8px;font-size:12.5px;color:var(--mid);max-width:300px}
+
+.intro{max-width:520px;padding:28px}
+.intro .mark{width:30px;height:33px;margin-bottom:14px}
+.intro h2{margin:0 0 8px;font-size:22px;font-weight:650;letter-spacing:-.02em}
+.intro .lede{font:400 18px/1.55 var(--serif);color:var(--ink2);margin:0 0 18px}
+.intro .pts{list-style:none;margin:0 0 22px;padding:0;display:grid;gap:12px}
+.intro .pts li{display:flex;gap:12px;font-size:13.5px;color:var(--mid)}
+.intro .pts .svg{color:var(--brand);margin-top:2px}
+.intro .pts b{display:block;color:var(--ink);font-weight:600}
+.intro-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.intro>.link{display:block;margin:0 auto}
+.inbox{max-width:640px}
+.inbox .ilist{max-height:52vh;overflow-y:auto;margin:16px -6px 0;padding:0 6px}
+.ient{border-top:1px solid var(--soft);padding:12px 0}
+.ient .row{gap:8px}
+.imsg{margin:6px 0!important;color:var(--ink)!important;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* workspace settings */
+.setrow{display:flex;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid var(--soft)}
+.setrow:last-child{border-bottom:0}
+.setrow b{display:flex;align-items:center;gap:8px;font-weight:580;font-size:14px}
+.setrow small{display:block;color:var(--faint);font-size:12.5px;margin-top:2px;max-width:62ch}
+.setrow .conn small{margin-top:0}
+.setrow.wrap{flex-wrap:wrap}
+.chip-x{display:inline-flex;border:0;background:rgba(255,255,255,.16);color:#fff;border-radius:50%;width:18px;height:18px;align-items:center;justify-content:center;padding:0;margin-right:-6px;cursor:pointer}
+.chip-x .svg{width:11px;height:11px;color:#fff}
+.chip-x:hover{background:rgba(255,255,255,.3)}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:18px;padding-top:16px;border-top:1px solid var(--soft);font-size:12.5px;color:var(--mid)}
+.roles b{display:block;color:var(--ink);font-weight:580;font-size:13px}
+code.key{display:block;font:500 13px var(--mono);color:var(--ink);background:var(--white);border-radius:8px;padding:8px 10px;margin:8px 0 2px;overflow-wrap:anywhere;box-shadow:inset 0 0 0 1px var(--good-line)}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.plan{border-radius:16px;padding:18px;background:var(--fill)}
+.plan.mid{background:var(--white);box-shadow:0 0 0 1px var(--b200),var(--sh2)}
+.plan b{font-size:15px}
+.plan .price{font:400 22px/1.3 var(--serif);margin:6px 0 8px}
+.plan p{margin:0;font-size:13px;color:var(--mid)}
+@keyframes fbin{from{opacity:0;transform:translateX(24px)}}
+
 /* ── motion ────────────────────────────────────── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -750,5 +840,15 @@ tr.click:hover td{background:#fbfbfc}
   .hide-m{display:none}
   .rules{grid-template-columns:1fr}
   .demo-fab{top:auto;bottom:150px;transform:none;padding:10px 6px}
+  .show-m{display:inline}
+  .demo-bar{gap:8px;padding-left:10px}
+  .fbp{top:auto;left:8px;right:8px;bottom:8px;width:auto;max-width:none;max-height:calc(100% - 56px);border-radius:18px}
+  .fbp-f{flex-direction:column;align-items:stretch}
+  .fbp-f .btn{height:44px}
+  .rate button{height:44px}
+  #pointHint{top:auto;bottom:16px;white-space:normal;width:calc(100% - 32px)}
+  .intro{padding:22px}
+  .intro-acts,.plans,.roles{grid-template-columns:1fr}
+  .setrow.wrap>.grow{flex-basis:100%}
   .demo{top:auto;bottom:150px;transform:none;right:40px;width:calc(100% - 56px)}
 }

@@ -3,14 +3,16 @@
   Sambad clickable mock: entry page.
   Open this file directly in a browser (no server, no build). It loads the
   seeded demo data (data.js) and the behaviour (app.js), which renders every
-  screen into #app. A throwaway prototype for feeling out the product before
-  the real Vite + FastAPI build; nothing here is production code.
+  screen into #app, plus config.js, which says where visitor feedback goes.
+  A prototype for getting feedback on the product before the real Vite +
+  FastAPI build; nothing here is production code.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sambad Mock</title>
+<title>Sambad Demo</title>
+<meta name="description" content="Interactive demo of Sambad, a self-hosted, permission-aware knowledge assistant. Made-up data, work in progress.">
 <link rel="icon" href="../imgs/sambad-mark.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,11 +20,15 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="demo-bar" id="demobar" role="note" aria-label="About this demo"></div>
 <div id="app"></div>
+<div id="fbp"></div>
 <div id="overlay"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div id="demo"></div>
+<div id="tsbox"><p>A quick check that you're a person, then your feedback is sent.</p><div id="tsslot"></div></div>
 <button class="demo-fab" data-act="demo" data-menu>Demo</button>
+<script src="config.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>
