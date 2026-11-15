@@ -141,3 +141,8 @@ CLAUDE.md
 # ==============================
 .wrangler/
 .dev.vars*
+
+# ==============================
+# Trailer video output (/brag)
+# ==============================
+brag-output/
